@@ -3,7 +3,7 @@ package draft_test
 import (
 	"testing"
 
-	"github.com/tylermclean/dynasty-ff-models/draft"
+	"github.com/tyler180/dynasty-ff-models/draft"
 )
 
 func TestPublicRecommendAPI(t *testing.T) {

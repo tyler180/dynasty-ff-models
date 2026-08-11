@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/tylermclean/dynasty-ff-models/internal/model"
+	"github.com/tyler180/dynasty-ff-models/internal/model"
 )
 
 type Result struct {

@@ -3,7 +3,7 @@ package optimizer
 import (
 	"testing"
 
-	"github.com/tylermclean/dynasty-ff-models/internal/model"
+	"github.com/tyler180/dynasty-ff-models/internal/model"
 )
 
 func TestFutureEligibilityChangesRecommendation(t *testing.T) {
