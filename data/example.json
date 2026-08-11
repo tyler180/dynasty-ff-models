@@ -1,0 +1,115 @@
+{
+  "league": {
+    "current_year": 2026,
+    "discount_rate": 0.9,
+    "bench_weight": 0.15,
+    "salary_penalty": 1.5,
+    "max_drops": 4,
+    "seasons": [
+      {
+        "year": 2027,
+        "salary_cap": 250,
+        "max_roster": 5,
+        "starting_slots": [
+          {"name": "QB", "count": 1, "eligible_positions": ["QB"]},
+          {"name": "RB", "count": 1, "eligible_positions": ["RB"]},
+          {"name": "WR", "count": 1, "eligible_positions": ["WR"]},
+          {"name": "FLEX", "count": 1, "eligible_positions": ["RB", "WR", "TE"]}
+        ]
+      },
+      {
+        "year": 2028,
+        "salary_cap": 260,
+        "max_roster": 5,
+        "starting_slots": [
+          {"name": "QB", "count": 1, "eligible_positions": ["QB"]},
+          {"name": "RB", "count": 1, "eligible_positions": ["RB"]},
+          {"name": "WR", "count": 2, "eligible_positions": ["WR"]},
+          {"name": "FLEX", "count": 1, "eligible_positions": ["RB", "WR", "TE"]}
+        ]
+      },
+      {
+        "year": 2029,
+        "salary_cap": 270,
+        "max_roster": 5,
+        "starting_slots": [
+          {"name": "QB", "count": 1, "eligible_positions": ["QB"]},
+          {"name": "RB", "count": 1, "eligible_positions": ["RB"]},
+          {"name": "WR", "count": 2, "eligible_positions": ["WR"]},
+          {"name": "FLEX", "count": 1, "eligible_positions": ["RB", "WR", "TE"]}
+        ]
+      }
+    ]
+  },
+  "roster": [
+    {
+      "id": "veteran-qb",
+      "name": "Veteran QB",
+      "positions": ["QB"],
+      "projected_points": {"2027": 280, "2028": 250, "2029": 215},
+      "salary": {"2027": 45, "2028": 45, "2029": 45},
+      "contract_through": 2029,
+      "droppable": false
+    },
+    {
+      "id": "starting-rb",
+      "name": "Starting RB",
+      "positions": ["RB"],
+      "projected_points": {"2027": 205, "2028": 175, "2029": 135},
+      "salary": {"2027": 52, "2028": 52, "2029": 52}
+    },
+    {
+      "id": "depth-wr",
+      "name": "Depth WR",
+      "positions": ["WR"],
+      "projected_points": {"2027": 105, "2028": 90, "2029": 70},
+      "salary": {"2027": 28, "2028": 28, "2029": 28}
+    },
+    {
+      "id": "replacement-te",
+      "name": "Replacement TE",
+      "positions": ["TE"],
+      "projected_points": {"2027": 75, "2028": 65, "2029": 55},
+      "salary": {"2027": 18, "2028": 18, "2029": 18}
+    }
+  ],
+  "available_rookies": [
+    {
+      "id": "rookie-rb-a",
+      "name": "Rookie RB A",
+      "positions": ["RB"],
+      "projected_points": {"2027": 155, "2028": 205, "2029": 220}
+    },
+    {
+      "id": "rookie-wr-b",
+      "name": "Rookie WR B",
+      "positions": ["WR"],
+      "projected_points": {"2027": 130, "2028": 190, "2029": 215}
+    },
+    {
+      "id": "rookie-te-c",
+      "name": "Rookie TE C",
+      "positions": ["TE"],
+      "projected_points": {"2027": 95, "2028": 180, "2029": 225}
+    }
+  ],
+  "remaining_draft_picks": [
+    {
+      "id": "2027-1.03",
+      "year": 2027,
+      "salary": {"2027": 22, "2028": 22, "2029": 22}
+    },
+    {
+      "id": "2027-2.03",
+      "year": 2027,
+      "salary": {"2027": 8, "2028": 8, "2029": 8}
+    }
+  ],
+  "eligibility_rules": [
+    {
+      "effective_year": 2028,
+      "from_position": "TE",
+      "add_positions": ["WR"]
+    }
+  ]
+}
