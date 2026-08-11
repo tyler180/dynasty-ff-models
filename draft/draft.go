@@ -4,8 +4,8 @@
 package draft
 
 import (
-	"github.com/tylermclean/dynasty-ff-draft-model/internal/model"
-	"github.com/tylermclean/dynasty-ff-draft-model/internal/optimizer"
+	"github.com/tylermclean/dynasty-ff-models/internal/model"
+	"github.com/tylermclean/dynasty-ff-models/internal/optimizer"
 )
 
 type Input = model.Input

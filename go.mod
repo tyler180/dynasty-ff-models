@@ -1,3 +1,3 @@
-module github.com/tylermclean/dynasty-ff-draft-model
+module github.com/tylermclean/dynasty-ff-models
 
 go 1.26

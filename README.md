@@ -12,7 +12,7 @@ repository. This module contains no MFL, AWS, database, or deployment code.
 ## Use it as a Go library
 
 ```go
-import draftmodel "github.com/tylermclean/dynasty-ff-draft-model/draft"
+import draftmodel "github.com/tylermclean/dynasty-ff-models/draft"
 
 result, err := draftmodel.Recommend(input)
 ```

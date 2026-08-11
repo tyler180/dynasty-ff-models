@@ -5,8 +5,8 @@ import (
 	"math"
 	"sort"
 
-	"github.com/tylermclean/dynasty-ff-draft-model/internal/model"
-	"github.com/tylermclean/dynasty-ff-draft-model/internal/valuation"
+	"github.com/tylermclean/dynasty-ff-models/internal/model"
+	"github.com/tylermclean/dynasty-ff-models/internal/valuation"
 )
 
 type candidateResult struct {
