@@ -86,6 +86,11 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 	}
 	if !analysis.RookieBoard.Available {
 		analysis.Warnings = append([]string{"No valued rookie candidates are present, so this report cannot rank draft selections."}, analysis.Warnings...)
+	} else if analysis.RookieBoard.UnrankedCandidates > 0 {
+		analysis.Warnings = append([]string{fmt.Sprintf(
+			"Rookie value coverage is partial: %d candidates are ranked and %d remain unranked.",
+			analysis.RookieBoard.RankedCandidates, analysis.RookieBoard.UnrankedCandidates,
+		)}, analysis.Warnings...)
 	}
 	for _, note := range snapshot.SourceReconciliation {
 		if strings.HasPrefix(note, "Sync warning: ") {
@@ -104,19 +109,20 @@ func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 		if candidate.ID == "" || candidate.Name == "" {
 			continue
 		}
-		if candidate.MarketValue <= 0 && candidate.RookieRank <= 0 && candidate.DynastyRank <= 0 && candidate.ProjectedPoints[year] <= 0 {
-			continue
-		}
-		if board.Source == "" {
+		valued := candidate.MarketValue > 0 || candidate.RookieRank > 0 || candidate.DynastyRank > 0 || candidate.ProjectedPoints[year] > 0
+		if valued && board.Source == "" {
 			board.Source = candidate.Source
 		}
 		board.Candidates = append(board.Candidates, RookieAssessment{
 			PlayerID: candidate.ID, Name: candidate.Name, Position: candidate.Position, NFLTeam: candidate.NFLTeam,
 			RookieRank: candidate.RookieRank, DynastyRank: candidate.DynastyRank, MarketValue: candidate.MarketValue,
-			ProjectedPoints: candidate.ProjectedPoints[year],
+			ProjectedPoints: candidate.ProjectedPoints[year], Valued: valued,
 		})
 	}
 	sort.SliceStable(board.Candidates, func(i, j int) bool {
+		if board.Candidates[i].Valued != board.Candidates[j].Valued {
+			return board.Candidates[i].Valued
+		}
 		if board.Candidates[i].MarketValue != board.Candidates[j].MarketValue {
 			return board.Candidates[i].MarketValue > board.Candidates[j].MarketValue
 		}
@@ -136,9 +142,14 @@ func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 		return board.Candidates[i].Name < board.Candidates[j].Name
 	})
 	for index := range board.Candidates {
-		board.Candidates[index].Rank = index + 1
+		if board.Candidates[index].Valued {
+			board.RankedCandidates++
+			board.Candidates[index].Rank = board.RankedCandidates
+		} else {
+			board.UnrankedCandidates++
+		}
 	}
-	board.Available = len(board.Candidates) > 0
+	board.Available = board.RankedCandidates > 0
 	return board
 }
 
@@ -155,7 +166,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 	evaluation.ProjectionSeason = snapshot.Projections.Season
 	evaluation.ProjectionSource = snapshot.Projections.Source
 	evaluation.ProductionMetric = "projected season points"
-	if len(points) == 0 && options.ProjectionFallback == "historical" {
+	if options.ProjectionFallback == "historical" {
 		historyByPlayer, _ = weightedHistorical(snapshot.HistoricalPoints)
 		points = make(map[string]float64, len(historyByPlayer))
 		allSeasons := historicalSeasonList(historyByPlayer)
