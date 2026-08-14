@@ -115,6 +115,9 @@ func writeRookiePool(out *strings.Builder, label string, pool RookieBoardPool) {
 		if candidate.RookieRank > 0 {
 			details = append(details, fmt.Sprintf("rookie ECR %.1f", candidate.RookieRank))
 		}
+		if candidate.RookieADP > 0 {
+			details = append(details, fmt.Sprintf("rookie ADP %.2f", candidate.RookieADP))
+		}
 		if candidate.DynastyRank > 0 {
 			details = append(details, fmt.Sprintf("dynasty ECR %.1f", candidate.DynastyRank))
 		}
