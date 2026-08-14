@@ -148,17 +148,18 @@ type RookieBoardPool struct {
 }
 
 type RookieAssessment struct {
-	Rank            int     `json:"rank,omitempty"`
-	Valued          bool    `json:"valued"`
-	PlayerID        string  `json:"player_id"`
-	Name            string  `json:"name"`
-	Position        string  `json:"position"`
-	NFLTeam         string  `json:"nfl_team,omitempty"`
-	RookieRank      float64 `json:"rookie_rank,omitempty"`
-	RookieADP       float64 `json:"rookie_adp,omitempty"`
-	DynastyRank     float64 `json:"dynasty_rank,omitempty"`
-	MarketValue     float64 `json:"market_value,omitempty"`
-	ProjectedPoints float64 `json:"projected_points,omitempty"`
+	Rank               int     `json:"rank,omitempty"`
+	Valued             bool    `json:"valued"`
+	PlayerID           string  `json:"player_id"`
+	Name               string  `json:"name"`
+	Position           string  `json:"position"`
+	NFLTeam            string  `json:"nfl_team,omitempty"`
+	RookieRank         float64 `json:"rookie_rank,omitempty"`
+	RookieADP          float64 `json:"rookie_adp,omitempty"`
+	ConsensusRankScore float64 `json:"consensus_rank_score,omitempty"`
+	DynastyRank        float64 `json:"dynasty_rank,omitempty"`
+	MarketValue        float64 `json:"market_value,omitempty"`
+	ProjectedPoints    float64 `json:"projected_points,omitempty"`
 }
 
 type AnalysisOptions struct {

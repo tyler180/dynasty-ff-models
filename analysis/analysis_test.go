@@ -134,6 +134,28 @@ func TestAnalyzeRanksAvailableRookiesByMarketValue(t *testing.T) {
 	}
 }
 
+func TestAnalyzeBlendsRookieECRAndBoardRelativeADP(t *testing.T) {
+	snapshot := Snapshot{
+		SnapshotDate: "2026-08-13",
+		League:       League{Name: "League"},
+		Franchise:    Franchise{Name: "Team"},
+		RookieCandidates: []RookieCandidate{
+			{ID: "golday", Name: "Jake Golday", Position: "LB", RookieRank: 10, RookieADP: 40, MarketValue: 8000},
+			{ID: "downs", Name: "Caleb Downs", Position: "S", RookieADP: 20},
+			{ID: "styles", Name: "Sonny Styles", Position: "LB", RookieRank: 1, RookieADP: 10, MarketValue: 9000},
+		},
+	}
+
+	result := Analyze(snapshot)
+	got := result.RookieBoard.IDP.Candidates
+	if got[0].PlayerID != "styles" || got[1].PlayerID != "downs" || got[2].PlayerID != "golday" {
+		t.Fatalf("blended IDP order = %s, %s, %s", got[0].PlayerID, got[1].PlayerID, got[2].PlayerID)
+	}
+	if got[0].ConsensusRankScore != 1 || got[1].ConsensusRankScore != 2 || got[2].ConsensusRankScore != 7.2 {
+		t.Fatalf("consensus scores = %.2f, %.2f, %.2f", got[0].ConsensusRankScore, got[1].ConsensusRankScore, got[2].ConsensusRankScore)
+	}
+}
+
 func TestHistoricalFallbackIgnoresPartialSeasonProjectionSet(t *testing.T) {
 	birthDate := time.Date(1997, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
 	snapshot := Snapshot{

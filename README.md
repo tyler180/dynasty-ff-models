@@ -14,8 +14,9 @@ Public packages:
   `draft.Recommend`.
 - `analysis` provides roster, cap, taxi, historical-efficiency,
   replacement-aware drop analysis, and independently ranked offense and IDP
-  rookie boards through `analysis.AnalyzeWithOptions`. Rookie ECR leads each
-  board, with rookie-only ADP available as a deeper fallback signal.
+  rookie boards through `analysis.AnalyzeWithOptions`. Each board uses a
+  60/40 blend of rookie ECR and board-relative rookie-only ADP when both are
+  available, and either signal can rank deeper candidates on its own.
 
 Callers build the public inputs from their own data stores and provider facts.
 

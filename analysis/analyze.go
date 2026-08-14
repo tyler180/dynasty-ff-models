@@ -110,7 +110,7 @@ func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 	board := RookieBoard{
 		Offense: RookieBoardPool{Candidates: []RookieAssessment{}},
 		IDP:     RookieBoardPool{Candidates: []RookieAssessment{}},
-		Caution: "Offense and IDP are ranked independently. Their market values are not comparable until league-specific IDP scarcity and scoring are calibrated.",
+		Caution: "Offense and IDP are ranked independently. Each board blends rookie ECR with board-relative MFL ADP, but the two boards are not comparable until league-specific IDP scarcity and scoring are calibrated.",
 	}
 	for _, candidate := range snapshot.RookieCandidates {
 		if candidate.ID == "" || candidate.Name == "" {
@@ -167,12 +167,30 @@ func setRookiePoolSource(pool *RookieBoardPool, source string, valued bool) {
 }
 
 func finalizeRookiePool(pool *RookieBoardPool) {
+	adpRanks := boardRelativeADPRanks(pool.Candidates)
+	for index := range pool.Candidates {
+		ecr, adpRank := pool.Candidates[index].RookieRank, adpRanks[index]
+		switch {
+		case ecr > 0 && adpRank > 0:
+			// ECR is the stronger signal, while ADP is strong enough to move a
+			// player across the former ECR/no-ECR boundary.
+			pool.Candidates[index].ConsensusRankScore = 0.60*ecr + 0.40*adpRank
+		case ecr > 0:
+			pool.Candidates[index].ConsensusRankScore = ecr
+		case adpRank > 0:
+			pool.Candidates[index].ConsensusRankScore = adpRank
+		}
+	}
 	sort.SliceStable(pool.Candidates, func(i, j int) bool {
 		if pool.Candidates[i].Valued != pool.Candidates[j].Valued {
 			return pool.Candidates[i].Valued
 		}
-		if pool.Candidates[i].MarketValue != pool.Candidates[j].MarketValue {
-			return pool.Candidates[i].MarketValue > pool.Candidates[j].MarketValue
+		leftScore, rightScore := pool.Candidates[i].ConsensusRankScore, pool.Candidates[j].ConsensusRankScore
+		if (leftScore > 0) != (rightScore > 0) {
+			return leftScore > 0
+		}
+		if leftScore != rightScore {
+			return leftScore < rightScore
 		}
 		leftRank, rightRank := pool.Candidates[i].RookieRank, pool.Candidates[j].RookieRank
 		if leftRank == 0 {
@@ -194,6 +212,9 @@ func finalizeRookiePool(pool *RookieBoardPool) {
 		if leftADP != rightADP {
 			return leftADP < rightADP
 		}
+		if pool.Candidates[i].MarketValue != pool.Candidates[j].MarketValue {
+			return pool.Candidates[i].MarketValue > pool.Candidates[j].MarketValue
+		}
 		if pool.Candidates[i].ProjectedPoints != pool.Candidates[j].ProjectedPoints {
 			return pool.Candidates[i].ProjectedPoints > pool.Candidates[j].ProjectedPoints
 		}
@@ -208,6 +229,32 @@ func finalizeRookiePool(pool *RookieBoardPool) {
 		}
 	}
 	pool.Available = pool.RankedCandidates > 0
+}
+
+func boardRelativeADPRanks(candidates []RookieAssessment) map[int]float64 {
+	indices := make([]int, 0, len(candidates))
+	for index, candidate := range candidates {
+		if candidate.RookieADP > 0 {
+			indices = append(indices, index)
+		}
+	}
+	sort.SliceStable(indices, func(i, j int) bool {
+		return candidates[indices[i]].RookieADP < candidates[indices[j]].RookieADP
+	})
+	ranks := make(map[int]float64, len(indices))
+	for position := 0; position < len(indices); {
+		end := position + 1
+		for end < len(indices) && candidates[indices[end]].RookieADP == candidates[indices[position]].RookieADP {
+			end++
+		}
+		// Equal ADPs share their average ordinal rank.
+		rank := (float64(position+1) + float64(end)) / 2
+		for cursor := position; cursor < end; cursor++ {
+			ranks[indices[cursor]] = rank
+		}
+		position = end
+	}
+	return ranks
 }
 
 func rookiePositionGroup(position string) string {
