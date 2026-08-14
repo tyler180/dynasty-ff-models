@@ -1,13 +1,21 @@
-# Dynasty Rookie Draft Model
+# Dynasty Fantasy Football Models
 
-A deterministic, provider-independent Go optimizer for dynasty rookie draft
-decisions. It evaluates available rookies, required roster cuts, salary-cap
-constraints, starting-lineup value, bench value, positional limits, future
-contracts, reserved picks, and dated eligibility changes across a configured
-time horizon.
+Provider-independent Go models for dynasty roster and rookie-draft decisions.
+They evaluate roster cuts, salary-cap constraints, taxi eligibility,
+replacement value, starting-lineup value, future contracts, reserved picks,
+and dated eligibility changes.
 
 Data acquisition and persistence live in the sibling `dynasty-ff-backend`
 repository. This module contains no MFL, AWS, database, or deployment code.
+
+Public packages:
+
+- `draft` provides deterministic rookie-draft optimization through
+  `draft.Recommend`.
+- `analysis` provides roster, cap, taxi, historical-efficiency, and
+  replacement-aware drop analysis through `analysis.AnalyzeWithOptions`.
+
+Callers build the public inputs from their own data stores and provider facts.
 
 ## Use it as a Go library
 
@@ -15,6 +23,12 @@ repository. This module contains no MFL, AWS, database, or deployment code.
 import draftmodel "github.com/tyler180/dynasty-ff-models/draft"
 
 result, err := draftmodel.Recommend(input)
+```
+
+```go
+import analysismodel "github.com/tyler180/dynasty-ff-models/analysis"
+
+result := analysismodel.AnalyzeWithOptions(snapshot, options)
 ```
 
 The backend resolves canonical player IDs, loads league state and historical
