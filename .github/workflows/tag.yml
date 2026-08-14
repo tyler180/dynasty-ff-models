@@ -1,0 +1,55 @@
+name: Create Version Tag
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Calculate next version
+        id: version
+        shell: bash
+        run: |
+          git fetch --tags
+
+          LATEST_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+
+          if [ -z "$LATEST_TAG" ]; then
+            NEXT_TAG="v0.0.1"
+          else
+            VERSION="${LATEST_TAG#v}"
+
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+            PATCH=$((PATCH + 1))
+            NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          echo "Latest tag: ${LATEST_TAG:-none}"
+          echo "Next tag: $NEXT_TAG"
+
+          echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
