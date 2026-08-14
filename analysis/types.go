@@ -125,12 +125,25 @@ type Analysis struct {
 }
 
 type RookieBoard struct {
+	Available          bool             `json:"available"`
+	Source             string           `json:"source,omitempty"`
+	RankedCandidates   int              `json:"ranked_candidates"`
+	UnrankedCandidates int              `json:"unranked_candidates"`
+	Offense            RookieBoardPool  `json:"offense"`
+	IDP                RookieBoardPool  `json:"idp"`
+	Other              *RookieBoardPool `json:"other,omitempty"`
+	// Candidates is retained for source compatibility. Combined offense/IDP
+	// rankings are intentionally no longer populated or serialized.
+	Candidates []RookieAssessment `json:"candidates,omitempty"`
+	Caution    string             `json:"caution"`
+}
+
+type RookieBoardPool struct {
 	Available          bool               `json:"available"`
 	Source             string             `json:"source,omitempty"`
 	RankedCandidates   int                `json:"ranked_candidates"`
 	UnrankedCandidates int                `json:"unranked_candidates"`
 	Candidates         []RookieAssessment `json:"candidates"`
-	Caution            string             `json:"caution"`
 }
 
 type RookieAssessment struct {

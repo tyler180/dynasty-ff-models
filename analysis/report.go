@@ -60,6 +60,15 @@ func FormatText(analysis Analysis) string {
 	}
 	fmt.Fprintln(&out)
 
+	fmt.Fprintf(&out, "ROOKIE BOARDS\n")
+	fmt.Fprintf(&out, "  Coverage: %d ranked, %d unranked\n", analysis.RookieBoard.RankedCandidates, analysis.RookieBoard.UnrankedCandidates)
+	writeRookiePool(&out, "OFFENSE", analysis.RookieBoard.Offense)
+	writeRookiePool(&out, "IDP", analysis.RookieBoard.IDP)
+	if analysis.RookieBoard.Other != nil {
+		writeRookiePool(&out, "OTHER POSITIONS", *analysis.RookieBoard.Other)
+	}
+	fmt.Fprintf(&out, "  Caution: %s\n\n", analysis.RookieBoard.Caution)
+
 	fmt.Fprintf(&out, "%s WEIGHTED CAP EFFICIENCY (CONTEXT ONLY)\n", formatSeasons(analysis.HistoricalEfficiency.Seasons))
 	fmt.Fprintf(&out, "  Method: %s\n", analysis.HistoricalEfficiency.Method)
 	fmt.Fprintf(&out, "  Most efficient: %s\n", efficiencyList(analysis.HistoricalEfficiency.MostEfficient))
@@ -92,6 +101,31 @@ func FormatText(analysis Analysis) string {
 		fmt.Fprintf(&out, "  - %s\n", warning)
 	}
 	return out.String()
+}
+
+func writeRookiePool(out *strings.Builder, label string, pool RookieBoardPool) {
+	fmt.Fprintf(out, "  %s (%d ranked, %d unranked):\n", label, pool.RankedCandidates, pool.UnrankedCandidates)
+	limit := min(10, pool.RankedCandidates)
+	for _, candidate := range pool.Candidates[:limit] {
+		fmt.Fprintf(out, "    - #%d %s (%s", candidate.Rank, candidate.Name, candidate.Position)
+		if candidate.NFLTeam != "" {
+			fmt.Fprintf(out, ", %s", candidate.NFLTeam)
+		}
+		details := []string{}
+		if candidate.RookieRank > 0 {
+			details = append(details, fmt.Sprintf("rookie ECR %.1f", candidate.RookieRank))
+		}
+		if candidate.DynastyRank > 0 {
+			details = append(details, fmt.Sprintf("dynasty ECR %.1f", candidate.DynastyRank))
+		}
+		if candidate.MarketValue > 0 {
+			details = append(details, fmt.Sprintf("market value %.0f", candidate.MarketValue))
+		}
+		if candidate.ProjectedPoints > 0 {
+			details = append(details, fmt.Sprintf("projected points %.1f", candidate.ProjectedPoints))
+		}
+		fmt.Fprintf(out, "): %s\n", strings.Join(details, "; "))
+	}
 }
 
 func writeCandidateSection(out *strings.Builder, label string, candidates []DropCandidate, metric string) {
