@@ -125,14 +125,17 @@ type Analysis struct {
 }
 
 type RookieBoard struct {
-	Available  bool               `json:"available"`
-	Source     string             `json:"source,omitempty"`
-	Candidates []RookieAssessment `json:"candidates"`
-	Caution    string             `json:"caution"`
+	Available          bool               `json:"available"`
+	Source             string             `json:"source,omitempty"`
+	RankedCandidates   int                `json:"ranked_candidates"`
+	UnrankedCandidates int                `json:"unranked_candidates"`
+	Candidates         []RookieAssessment `json:"candidates"`
+	Caution            string             `json:"caution"`
 }
 
 type RookieAssessment struct {
-	Rank            int     `json:"rank"`
+	Rank            int     `json:"rank,omitempty"`
+	Valued          bool    `json:"valued"`
 	PlayerID        string  `json:"player_id"`
 	Name            string  `json:"name"`
 	Position        string  `json:"position"`
