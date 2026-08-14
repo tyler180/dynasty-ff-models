@@ -116,10 +116,11 @@ func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 		if candidate.ID == "" || candidate.Name == "" {
 			continue
 		}
-		valued := candidate.MarketValue > 0 || candidate.RookieRank > 0 || candidate.DynastyRank > 0 || candidate.ProjectedPoints[year] > 0
+		valued := candidate.MarketValue > 0 || candidate.RookieRank > 0 || candidate.RookieADP > 0 || candidate.DynastyRank > 0 || candidate.ProjectedPoints[year] > 0
 		assessment := RookieAssessment{
 			PlayerID: candidate.ID, Name: candidate.Name, Position: candidate.Position, NFLTeam: candidate.NFLTeam,
-			RookieRank: candidate.RookieRank, DynastyRank: candidate.DynastyRank, MarketValue: candidate.MarketValue,
+			RookieRank: candidate.RookieRank, RookieADP: candidate.RookieADP,
+			DynastyRank: candidate.DynastyRank, MarketValue: candidate.MarketValue,
 			ProjectedPoints: candidate.ProjectedPoints[year], Valued: valued,
 		}
 		switch rookiePositionGroup(candidate.Position) {
@@ -182,6 +183,16 @@ func finalizeRookiePool(pool *RookieBoardPool) {
 		}
 		if leftRank != rightRank {
 			return leftRank < rightRank
+		}
+		leftADP, rightADP := pool.Candidates[i].RookieADP, pool.Candidates[j].RookieADP
+		if leftADP == 0 {
+			leftADP = math.Inf(1)
+		}
+		if rightADP == 0 {
+			rightADP = math.Inf(1)
+		}
+		if leftADP != rightADP {
+			return leftADP < rightADP
 		}
 		if pool.Candidates[i].ProjectedPoints != pool.Candidates[j].ProjectedPoints {
 			return pool.Candidates[i].ProjectedPoints > pool.Candidates[j].ProjectedPoints
