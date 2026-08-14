@@ -10,6 +10,7 @@ type Snapshot struct {
 	ReplacementLevels    ReplacementLevels `json:"replacement_levels"`
 	BirthdatesUnix       map[string]int64  `json:"birthdates_unix"`
 	Projections          Projections       `json:"projections"`
+	RookieCandidates     []RookieCandidate `json:"rookie_candidates,omitempty"`
 	Draft                Draft             `json:"draft"`
 	SourceReconciliation []string          `json:"source_reconciliation"`
 }
@@ -73,6 +74,22 @@ type Projections struct {
 	ByPlayerID map[string]float64 `json:"by_player_id"`
 }
 
+// RookieCandidate is a provider-independent market and projection observation
+// for a player currently available in the league's rookie pool.
+type RookieCandidate struct {
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	Position        string          `json:"position"`
+	NFLTeam         string          `json:"nfl_team,omitempty"`
+	RookieYear      int             `json:"rookie_year"`
+	RookieRank      float64         `json:"rookie_rank,omitempty"`
+	DynastyRank     float64         `json:"dynasty_rank,omitempty"`
+	MarketValue     float64         `json:"market_value,omitempty"`
+	ProjectedPoints map[int]float64 `json:"projected_points,omitempty"`
+	Source          string          `json:"source"`
+	UpdatedAt       string          `json:"updated_at,omitempty"`
+}
+
 type Draft struct {
 	Status                 string                 `json:"status"`
 	StatusMessage          string                 `json:"status_message"`
@@ -103,7 +120,27 @@ type Analysis struct {
 	ComplianceScenarios  []ComplianceScenario `json:"compliance_scenarios"`
 	HistoricalEfficiency HistoricalEfficiency `json:"historical_efficiency"`
 	DropEvaluation       DropEvaluation       `json:"drop_evaluation"`
+	RookieBoard          RookieBoard          `json:"rookie_board"`
 	Warnings             []string             `json:"warnings"`
+}
+
+type RookieBoard struct {
+	Available  bool               `json:"available"`
+	Source     string             `json:"source,omitempty"`
+	Candidates []RookieAssessment `json:"candidates"`
+	Caution    string             `json:"caution"`
+}
+
+type RookieAssessment struct {
+	Rank            int     `json:"rank"`
+	PlayerID        string  `json:"player_id"`
+	Name            string  `json:"name"`
+	Position        string  `json:"position"`
+	NFLTeam         string  `json:"nfl_team,omitempty"`
+	RookieRank      float64 `json:"rookie_rank,omitempty"`
+	DynastyRank     float64 `json:"dynasty_rank,omitempty"`
+	MarketValue     float64 `json:"market_value,omitempty"`
+	ProjectedPoints float64 `json:"projected_points,omitempty"`
 }
 
 type AnalysisOptions struct {

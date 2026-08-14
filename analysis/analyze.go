@@ -78,11 +78,14 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 	analysis.ComplianceScenarios = complianceScenarios(snapshot, active, taxi, analysis.TaxiCompliance.MustLeaveTaxi)
 	analysis.HistoricalEfficiency = historicalEfficiency(snapshot, active)
 	analysis.DropEvaluation = evaluateDrops(snapshot, options)
+	analysis.RookieBoard = evaluateRookies(snapshot, year)
 	analysis.Warnings = []string{
-		"No rookie or multi-year veteran projections are present, so this report cannot rank draft selections.",
 		"Historical fallback uses up to four prior seasons; replacement value and early-career protection improve cut analysis, but explicit dynasty market values are still absent.",
 		"The rookie draft is voluntary; total pick salary is an upper bound only if every pick is used on an active player.",
 		"Roster status and player eligibility must be refreshed again when the draft is scheduled.",
+	}
+	if !analysis.RookieBoard.Available {
+		analysis.Warnings = append([]string{"No valued rookie candidates are present, so this report cannot rank draft selections."}, analysis.Warnings...)
 	}
 	for _, note := range snapshot.SourceReconciliation {
 		if strings.HasPrefix(note, "Sync warning: ") {
@@ -90,6 +93,53 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 		}
 	}
 	return analysis
+}
+
+func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
+	board := RookieBoard{
+		Candidates: []RookieAssessment{},
+		Caution:    "Consensus market value and single-season projections are decision inputs, not guarantees. Multi-year projections and league-specific IDP scarcity still require model calibration.",
+	}
+	for _, candidate := range snapshot.RookieCandidates {
+		if candidate.ID == "" || candidate.Name == "" {
+			continue
+		}
+		if candidate.MarketValue <= 0 && candidate.RookieRank <= 0 && candidate.DynastyRank <= 0 && candidate.ProjectedPoints[year] <= 0 {
+			continue
+		}
+		if board.Source == "" {
+			board.Source = candidate.Source
+		}
+		board.Candidates = append(board.Candidates, RookieAssessment{
+			PlayerID: candidate.ID, Name: candidate.Name, Position: candidate.Position, NFLTeam: candidate.NFLTeam,
+			RookieRank: candidate.RookieRank, DynastyRank: candidate.DynastyRank, MarketValue: candidate.MarketValue,
+			ProjectedPoints: candidate.ProjectedPoints[year],
+		})
+	}
+	sort.SliceStable(board.Candidates, func(i, j int) bool {
+		if board.Candidates[i].MarketValue != board.Candidates[j].MarketValue {
+			return board.Candidates[i].MarketValue > board.Candidates[j].MarketValue
+		}
+		leftRank, rightRank := board.Candidates[i].RookieRank, board.Candidates[j].RookieRank
+		if leftRank == 0 {
+			leftRank = math.Inf(1)
+		}
+		if rightRank == 0 {
+			rightRank = math.Inf(1)
+		}
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		if board.Candidates[i].ProjectedPoints != board.Candidates[j].ProjectedPoints {
+			return board.Candidates[i].ProjectedPoints > board.Candidates[j].ProjectedPoints
+		}
+		return board.Candidates[i].Name < board.Candidates[j].Name
+	})
+	for index := range board.Candidates {
+		board.Candidates[index].Rank = index + 1
+	}
+	board.Available = len(board.Candidates) > 0
+	return board
 }
 
 func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {

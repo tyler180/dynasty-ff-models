@@ -66,3 +66,23 @@ func TestWeightedHistoricalUsesFourSeasonsAndIgnoresMissing(t *testing.T) {
 		t.Fatalf("seasons = %v", seasons)
 	}
 }
+
+func TestAnalyzeRanksAvailableRookiesByMarketValue(t *testing.T) {
+	snapshot := Snapshot{
+		SnapshotDate: "2026-08-13",
+		League:       League{Name: "League", SalaryCap: 250, ActiveRosterLimit: 26, TaxiSquadLimit: 4},
+		Franchise:    Franchise{Name: "Team"},
+		Roster:       []Player{{ID: "veteran", Name: "Veteran", Status: "ROSTER"}},
+		RookieCandidates: []RookieCandidate{
+			{ID: "rookie-2", Name: "Second", Position: "LB", RookieYear: 2026, RookieRank: 2, MarketValue: 7000, ProjectedPoints: map[int]float64{2026: 180}, Source: "FantasyPros"},
+			{ID: "rookie-1", Name: "First", Position: "WR", RookieYear: 2026, RookieRank: 1, MarketValue: 9000, ProjectedPoints: map[int]float64{2026: 150}, Source: "FantasyPros"},
+		},
+	}
+	result := Analyze(snapshot)
+	if !result.RookieBoard.Available || len(result.RookieBoard.Candidates) != 2 {
+		t.Fatalf("rookie board = %+v", result.RookieBoard)
+	}
+	if got := result.RookieBoard.Candidates[0]; got.PlayerID != "rookie-1" || got.Rank != 1 {
+		t.Fatalf("first rookie = %+v", got)
+	}
+}
