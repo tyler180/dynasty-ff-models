@@ -1,7 +1,9 @@
 package analysis
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -74,23 +76,57 @@ func TestAnalyzeRanksAvailableRookiesByMarketValue(t *testing.T) {
 		Franchise:    Franchise{Name: "Team"},
 		Roster:       []Player{{ID: "veteran", Name: "Veteran", Status: "ROSTER"}},
 		RookieCandidates: []RookieCandidate{
-			{ID: "rookie-2", Name: "Second", Position: "LB", RookieYear: 2026, RookieRank: 2, MarketValue: 7000, ProjectedPoints: map[int]float64{2026: 180}, Source: "FantasyPros"},
-			{ID: "rookie-1", Name: "First", Position: "WR", RookieYear: 2026, RookieRank: 1, MarketValue: 9000, ProjectedPoints: map[int]float64{2026: 150}, Source: "FantasyPros"},
-			{ID: "rookie-3", Name: "Unranked", Position: "DB", RookieYear: 2026, Source: "MFL"},
+			{ID: "idp-2", Name: "Second IDP", Position: "LB", RookieYear: 2026, RookieRank: 2, MarketValue: 7000, ProjectedPoints: map[int]float64{2026: 180}, Source: "FantasyPros"},
+			{ID: "offense-1", Name: "First Offense", Position: "WR", RookieYear: 2026, RookieRank: 1, MarketValue: 9000, ProjectedPoints: map[int]float64{2026: 150}, Source: "FantasyPros"},
+			{ID: "idp-1", Name: "First IDP", Position: "DE", RookieYear: 2026, RookieRank: 1, MarketValue: 8000, Source: "FantasyPros"},
+			{ID: "idp-unranked", Name: "Unranked IDP", Position: "DB", RookieYear: 2026, Source: "MFL"},
+			{ID: "other-unranked", Name: "Unclassified", Position: "LS", RookieYear: 2026, Source: "MFL"},
 		},
 	}
 	result := Analyze(snapshot)
-	if !result.RookieBoard.Available || len(result.RookieBoard.Candidates) != 3 {
+	if !result.RookieBoard.Available || result.RookieBoard.Other == nil {
 		t.Fatalf("rookie board = %+v", result.RookieBoard)
 	}
-	if result.RookieBoard.RankedCandidates != 2 || result.RookieBoard.UnrankedCandidates != 1 {
+	if result.RookieBoard.RankedCandidates != 3 || result.RookieBoard.UnrankedCandidates != 2 {
 		t.Fatalf("rookie coverage = %+v", result.RookieBoard)
 	}
-	if got := result.RookieBoard.Candidates[0]; got.PlayerID != "rookie-1" || got.Rank != 1 {
-		t.Fatalf("first rookie = %+v", got)
+	if got := result.RookieBoard.Offense.Candidates[0]; got.PlayerID != "offense-1" || got.Rank != 1 {
+		t.Fatalf("first offensive rookie = %+v", got)
 	}
-	if got := result.RookieBoard.Candidates[2]; got.PlayerID != "rookie-3" || got.Rank != 0 || got.Valued {
-		t.Fatalf("unranked rookie = %+v", got)
+	if got := result.RookieBoard.IDP.Candidates[0]; got.PlayerID != "idp-1" || got.Rank != 1 {
+		t.Fatalf("first IDP rookie = %+v", got)
+	}
+	if got := result.RookieBoard.IDP.Candidates[2]; got.PlayerID != "idp-unranked" || got.Rank != 0 || got.Valued {
+		t.Fatalf("unranked IDP rookie = %+v", got)
+	}
+	if got := result.RookieBoard.Other.Candidates[0]; got.PlayerID != "other-unranked" {
+		t.Fatalf("other rookie = %+v", got)
+	}
+	if !strings.Contains(result.Warnings[0], "offense has 1 ranked and 0 unranked; IDP has 2 ranked and 1 unranked") {
+		t.Fatalf("rookie coverage warning = %q", result.Warnings[0])
+	}
+	payload, err := json.Marshal(result.RookieBoard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var shape map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &shape); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := shape["candidates"]; found {
+		t.Fatalf("combined candidate list must not be serialized: %s", payload)
+	}
+	if _, found := shape["offense"]; !found {
+		t.Fatalf("offense board missing from JSON: %s", payload)
+	}
+	if _, found := shape["idp"]; !found {
+		t.Fatalf("IDP board missing from JSON: %s", payload)
+	}
+	report := FormatText(result)
+	for _, expected := range []string{"ROOKIE BOARDS", "OFFENSE (1 ranked, 0 unranked)", "IDP (2 ranked, 1 unranked)", "#1 First Offense", "#1 First IDP"} {
+		if !strings.Contains(report, expected) {
+			t.Errorf("formatted report is missing %q:\n%s", expected, report)
+		}
 	}
 }
 

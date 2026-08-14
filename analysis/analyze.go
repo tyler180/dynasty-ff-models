@@ -87,10 +87,16 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 	if !analysis.RookieBoard.Available {
 		analysis.Warnings = append([]string{"No valued rookie candidates are present, so this report cannot rank draft selections."}, analysis.Warnings...)
 	} else if analysis.RookieBoard.UnrankedCandidates > 0 {
-		analysis.Warnings = append([]string{fmt.Sprintf(
-			"Rookie value coverage is partial: %d candidates are ranked and %d remain unranked.",
-			analysis.RookieBoard.RankedCandidates, analysis.RookieBoard.UnrankedCandidates,
-		)}, analysis.Warnings...)
+		warning := fmt.Sprintf(
+			"Rookie value coverage is partial: offense has %d ranked and %d unranked; IDP has %d ranked and %d unranked.",
+			analysis.RookieBoard.Offense.RankedCandidates, analysis.RookieBoard.Offense.UnrankedCandidates,
+			analysis.RookieBoard.IDP.RankedCandidates, analysis.RookieBoard.IDP.UnrankedCandidates,
+		)
+		if analysis.RookieBoard.Other != nil {
+			warning += fmt.Sprintf(" Other positions have %d ranked and %d unranked.",
+				analysis.RookieBoard.Other.RankedCandidates, analysis.RookieBoard.Other.UnrankedCandidates)
+		}
+		analysis.Warnings = append([]string{warning}, analysis.Warnings...)
 	}
 	for _, note := range snapshot.SourceReconciliation {
 		if strings.HasPrefix(note, "Sync warning: ") {
@@ -102,31 +108,72 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 
 func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 	board := RookieBoard{
-		Candidates: []RookieAssessment{},
-		Caution:    "Consensus market value and single-season projections are decision inputs, not guarantees. Multi-year projections and league-specific IDP scarcity still require model calibration.",
+		Offense: RookieBoardPool{Candidates: []RookieAssessment{}},
+		IDP:     RookieBoardPool{Candidates: []RookieAssessment{}},
+		Caution: "Offense and IDP are ranked independently. Their market values are not comparable until league-specific IDP scarcity and scoring are calibrated.",
 	}
 	for _, candidate := range snapshot.RookieCandidates {
 		if candidate.ID == "" || candidate.Name == "" {
 			continue
 		}
 		valued := candidate.MarketValue > 0 || candidate.RookieRank > 0 || candidate.DynastyRank > 0 || candidate.ProjectedPoints[year] > 0
-		if valued && board.Source == "" {
-			board.Source = candidate.Source
-		}
-		board.Candidates = append(board.Candidates, RookieAssessment{
+		assessment := RookieAssessment{
 			PlayerID: candidate.ID, Name: candidate.Name, Position: candidate.Position, NFLTeam: candidate.NFLTeam,
 			RookieRank: candidate.RookieRank, DynastyRank: candidate.DynastyRank, MarketValue: candidate.MarketValue,
 			ProjectedPoints: candidate.ProjectedPoints[year], Valued: valued,
-		})
+		}
+		switch rookiePositionGroup(candidate.Position) {
+		case "offense":
+			board.Offense.Candidates = append(board.Offense.Candidates, assessment)
+			setRookiePoolSource(&board.Offense, candidate.Source, valued)
+		case "idp":
+			board.IDP.Candidates = append(board.IDP.Candidates, assessment)
+			setRookiePoolSource(&board.IDP, candidate.Source, valued)
+		default:
+			if board.Other == nil {
+				board.Other = &RookieBoardPool{Candidates: []RookieAssessment{}}
+			}
+			board.Other.Candidates = append(board.Other.Candidates, assessment)
+			setRookiePoolSource(board.Other, candidate.Source, valued)
+		}
 	}
-	sort.SliceStable(board.Candidates, func(i, j int) bool {
-		if board.Candidates[i].Valued != board.Candidates[j].Valued {
-			return board.Candidates[i].Valued
+	finalizeRookiePool(&board.Offense)
+	finalizeRookiePool(&board.IDP)
+	if board.Other != nil {
+		finalizeRookiePool(board.Other)
+	}
+	board.RankedCandidates = board.Offense.RankedCandidates + board.IDP.RankedCandidates
+	board.UnrankedCandidates = board.Offense.UnrankedCandidates + board.IDP.UnrankedCandidates
+	if board.Other != nil {
+		board.RankedCandidates += board.Other.RankedCandidates
+		board.UnrankedCandidates += board.Other.UnrankedCandidates
+	}
+	board.Available = board.RankedCandidates > 0
+	if board.Offense.Source != "" {
+		board.Source = board.Offense.Source
+	} else if board.IDP.Source != "" {
+		board.Source = board.IDP.Source
+	} else if board.Other != nil {
+		board.Source = board.Other.Source
+	}
+	return board
+}
+
+func setRookiePoolSource(pool *RookieBoardPool, source string, valued bool) {
+	if valued && pool.Source == "" {
+		pool.Source = source
+	}
+}
+
+func finalizeRookiePool(pool *RookieBoardPool) {
+	sort.SliceStable(pool.Candidates, func(i, j int) bool {
+		if pool.Candidates[i].Valued != pool.Candidates[j].Valued {
+			return pool.Candidates[i].Valued
 		}
-		if board.Candidates[i].MarketValue != board.Candidates[j].MarketValue {
-			return board.Candidates[i].MarketValue > board.Candidates[j].MarketValue
+		if pool.Candidates[i].MarketValue != pool.Candidates[j].MarketValue {
+			return pool.Candidates[i].MarketValue > pool.Candidates[j].MarketValue
 		}
-		leftRank, rightRank := board.Candidates[i].RookieRank, board.Candidates[j].RookieRank
+		leftRank, rightRank := pool.Candidates[i].RookieRank, pool.Candidates[j].RookieRank
 		if leftRank == 0 {
 			leftRank = math.Inf(1)
 		}
@@ -136,21 +183,31 @@ func evaluateRookies(snapshot Snapshot, year int) RookieBoard {
 		if leftRank != rightRank {
 			return leftRank < rightRank
 		}
-		if board.Candidates[i].ProjectedPoints != board.Candidates[j].ProjectedPoints {
-			return board.Candidates[i].ProjectedPoints > board.Candidates[j].ProjectedPoints
+		if pool.Candidates[i].ProjectedPoints != pool.Candidates[j].ProjectedPoints {
+			return pool.Candidates[i].ProjectedPoints > pool.Candidates[j].ProjectedPoints
 		}
-		return board.Candidates[i].Name < board.Candidates[j].Name
+		return pool.Candidates[i].Name < pool.Candidates[j].Name
 	})
-	for index := range board.Candidates {
-		if board.Candidates[index].Valued {
-			board.RankedCandidates++
-			board.Candidates[index].Rank = board.RankedCandidates
+	for index := range pool.Candidates {
+		if pool.Candidates[index].Valued {
+			pool.RankedCandidates++
+			pool.Candidates[index].Rank = pool.RankedCandidates
 		} else {
-			board.UnrankedCandidates++
+			pool.UnrankedCandidates++
 		}
 	}
-	board.Available = board.RankedCandidates > 0
-	return board
+	pool.Available = pool.RankedCandidates > 0
+}
+
+func rookiePositionGroup(position string) string {
+	switch strings.ToUpper(strings.TrimSpace(position)) {
+	case "QB", "RB", "WR", "TE", "K", "PK", "P":
+		return "offense"
+	case "DE", "DT", "DL", "EDGE", "LB", "ILB", "OLB", "CB", "S", "DB":
+		return "idp"
+	default:
+		return "other"
+	}
 }
 
 func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {

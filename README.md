@@ -12,8 +12,9 @@ Public packages:
 
 - `draft` provides deterministic rookie-draft optimization through
   `draft.Recommend`.
-- `analysis` provides roster, cap, taxi, historical-efficiency, and
-  replacement-aware drop analysis through `analysis.AnalyzeWithOptions`.
+- `analysis` provides roster, cap, taxi, historical-efficiency,
+  replacement-aware drop analysis, and independently ranked offense and IDP
+  rookie boards through `analysis.AnalyzeWithOptions`.
 
 Callers build the public inputs from their own data stores and provider facts.
 
