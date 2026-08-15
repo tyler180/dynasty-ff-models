@@ -83,12 +83,17 @@ func FormatText(analysis Analysis) string {
 		if analysis.DropEvaluation.ReplacementSource != "" {
 			fmt.Fprintf(&out, "  Replacement input: %s\n", analysis.DropEvaluation.ReplacementSource)
 		}
-		if analysis.DropEvaluation.BestForTarget != nil {
-			best := analysis.DropEvaluation.BestForTarget
-			fmt.Fprintf(&out, "  Best DROP candidate for at least $%.2f relief: %s (%s, age %d) — saves $%.2f, %.2f %s, drop score %.3f\n",
-				analysis.DropEvaluation.CapReliefTarget, best.Name, best.Position, best.Age, best.SalaryCapRelief, best.ProductionValue, analysis.DropEvaluation.ProductionMetric, best.DropScore)
+		if len(analysis.DropEvaluation.RecommendedCuts) > 0 {
+			names := make([]string, 0, len(analysis.DropEvaluation.RecommendedCuts))
+			for _, candidate := range analysis.DropEvaluation.RecommendedCuts {
+				names = append(names, candidate.Name)
+			}
+			fmt.Fprintf(&out, "  Recommended DROP package for at least $%.2f relief: %s — saves $%.2f\n",
+				analysis.DropEvaluation.CapReliefTarget, strings.Join(names, ", "), analysis.DropEvaluation.RecommendedRelief)
+		} else if analysis.DropEvaluation.CapReliefTarget <= 0 {
+			fmt.Fprintf(&out, "  No cap relief is currently required.\n")
 		} else {
-			fmt.Fprintf(&out, "  No player classified as a DROP candidate provides the $%.2f target relief; review trade-first options instead.\n", analysis.DropEvaluation.CapReliefTarget)
+			fmt.Fprintf(&out, "  No combination of players classified as DROP candidates provides the $%.2f target relief; review trade-first options instead.\n", analysis.DropEvaluation.CapReliefTarget)
 		}
 		writeCandidateSection(&out, "DROP CANDIDATES", analysis.DropEvaluation.DropCandidates, analysis.DropEvaluation.ProductionMetric)
 		writeCandidateSection(&out, "TRADE FIRST — DO NOT DROP", analysis.DropEvaluation.TradeFirst, analysis.DropEvaluation.ProductionMetric)

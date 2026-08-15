@@ -174,7 +174,7 @@ func finalizeRookiePool(pool *RookieBoardPool) {
 		case ecr > 0 && adpRank > 0:
 			// ECR is the stronger signal, while ADP is strong enough to move a
 			// player across the former ECR/no-ECR boundary.
-			pool.Candidates[index].ConsensusRankScore = 0.60*ecr + 0.40*adpRank
+			pool.Candidates[index].ConsensusRankScore = round(0.60*ecr+0.40*adpRank, 2)
 		case ecr > 0:
 			pool.Candidates[index].ConsensusRankScore = ecr
 		case adpRank > 0:
@@ -273,8 +273,8 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		CapReliefTarget:  round(math.Max(0, options.CapReliefTarget), 2),
 		Candidates:       []DropCandidate{},
 		MissingPlayerIDs: []string{},
-		Method:           "Classify players before ranking: protect early-career assets, trade players clearly above replacement, then rank actual drop candidates by cap relief per marginal dynasty value lost.",
-		Caution:          "Replacement value and a conservative development guard are modeled, but external dynasty market value, future role projections, and trade liquidity are not yet available.",
+		Method:           "Classify players before ranking: protect early-career and dynasty-ranked assets, then choose the lowest-retention-cost combination of actual drop candidates that meets the cap target.",
+		Caution:          "Replacement value, age, development, and available dynasty ECR are modeled. Market value is a rank-derived proxy, not a trade offer; future role, availability, and trade liquidity still require judgment.",
 	}
 	points := snapshot.Projections.ByPlayerID
 	historyByPlayer := map[string]historicalValue{}
@@ -292,7 +292,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		evaluation.ProjectionSource = fmt.Sprintf("%s recency-weighted historical points-per-game fallback", formatSeasons(allSeasons))
 		evaluation.ProductionMetric = "historical points per game"
 		evaluation.ReplacementSource = snapshot.ReplacementLevels.Source
-		evaluation.Caution = "Historical PPG fallback is enabled for exploratory use. Current free-agent replacement levels and early-career protection are included, but external dynasty market values and future role projections are not."
+		evaluation.Caution = "Historical PPG fallback is enabled for exploratory use. Current free-agent replacement levels and available dynasty ECR improve the result, but future role, availability, and trade liquidity still require judgment."
 	}
 	if len(points) == 0 {
 		evaluation.ProjectionSource = "unavailable"
@@ -320,6 +320,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		factor := ageFactor(player.Position, age)
 		development := 1.0
 		adjusted := math.Max(1, projected*factor)
+		retention := adjusted + player.MarketValue/1000
 		candidate := DropCandidate{
 			PlayerID:              player.ID,
 			Name:                  player.Name,
@@ -330,9 +331,17 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 			AgeFactor:             round(factor, 3),
 			DevelopmentFactor:     1,
 			AgeAdjustedProduction: round(adjusted, 2),
-			DropScore:             round(100*relief/adjusted, 3),
+			RetentionValue:        round(retention, 3),
+			DropScore:             round(100*relief/retention, 3),
+			DynastyRank:           player.DynastyRank,
+			MarketValue:           player.MarketValue,
+			MarketSource:          player.MarketSource,
 			Disposition:           "cap_efficiency_only",
 			DispositionReason:     "No compatible replacement-level input is available for this production metric.",
+		}
+		if marketProtected(candidate) {
+			candidate.Disposition = "trade_first"
+			candidate.DispositionReason = "Protected from an outright drop by current dynasty market ranking; trade before considering release."
 		}
 		if historical, ok := historyByPlayer[player.ID]; ok {
 			candidate.ProductionSeasons = append([]int(nil), historical.Seasons...)
@@ -346,7 +355,10 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 				candidate.ReplacementPointsPerGame = round(replacement, 2)
 				candidate.ValueOverReplacement = round(vorp, 2)
 				candidate.DynastyAdjustedVORP = round(adjustedVORP, 2)
-				candidate.DropScore = round(100*relief/(1+adjustedVORP), 3)
+				productionShare := math.Max(0.1, projected/replacement)
+				retention := productionShare + adjustedVORP + player.MarketValue/1000
+				candidate.RetentionValue = round(retention, 3)
+				candidate.DropScore = round(100*relief/retention, 3)
 				candidate.Disposition, candidate.DispositionReason = disposition(candidate, vorp)
 			}
 		}
@@ -382,12 +394,11 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		}
 	}
 	evaluation.Available = len(evaluation.Candidates) > 0
-	for i := range evaluation.DropCandidates {
-		if evaluation.DropCandidates[i].SalaryCapRelief >= evaluation.CapReliefTarget {
-			best := evaluation.DropCandidates[i]
-			evaluation.BestForTarget = &best
-			break
-		}
+	evaluation.RecommendedCuts, evaluation.RecommendedRelief = recommendCutPackage(evaluation.DropCandidates, evaluation.CapReliefTarget)
+	evaluation.TargetMet = evaluation.CapReliefTarget <= 0 || evaluation.RecommendedRelief >= evaluation.CapReliefTarget
+	if len(evaluation.RecommendedCuts) > 0 {
+		best := evaluation.RecommendedCuts[0]
+		evaluation.BestForTarget = &best
 	}
 	return evaluation
 }
@@ -411,10 +422,73 @@ func disposition(candidate DropCandidate, vorp float64) (string, string) {
 	if candidate.CareerSeasons <= 2 && candidate.Age <= 26 {
 		return "hold_develop", "Early-career player is protected because historical production does not capture development or market value reliably."
 	}
+	if marketProtected(candidate) {
+		return "trade_first", "Protected from an outright drop by current dynasty market ranking; trade before considering release."
+	}
 	if vorp >= 1 {
 		return "trade_first", "Produces at least 1.0 PPG above the current positional replacement level."
 	}
 	return "drop_candidate", "At or near the current positional replacement level and not covered by the early-career protection rule."
+}
+
+func marketProtected(candidate DropCandidate) bool {
+	return candidate.MarketValue >= 1000 || (candidate.DynastyRank > 0 && candidate.DynastyRank <= 100)
+}
+
+type cutPackage struct {
+	cuts      []DropCandidate
+	relief    int
+	retention float64
+}
+
+func recommendCutPackage(candidates []DropCandidate, target float64) ([]DropCandidate, float64) {
+	targetCents := int(math.Ceil(math.Max(0, target) * 100))
+	if targetCents == 0 {
+		return nil, 0
+	}
+	states := make([]*cutPackage, targetCents+1)
+	states[0] = &cutPackage{}
+	for _, candidate := range candidates {
+		reliefCents := int(math.Round(candidate.SalaryCapRelief * 100))
+		if reliefCents <= 0 {
+			continue
+		}
+		next := append([]*cutPackage(nil), states...)
+		for saved, state := range states {
+			if state == nil {
+				continue
+			}
+			newSaved := min(targetCents, saved+reliefCents)
+			proposal := &cutPackage{
+				cuts:      append(append([]DropCandidate(nil), state.cuts...), candidate),
+				relief:    state.relief + reliefCents,
+				retention: state.retention + candidate.RetentionValue,
+			}
+			if betterCutPackage(proposal, next[newSaved], targetCents) {
+				next[newSaved] = proposal
+			}
+		}
+		states = next
+	}
+	best := states[targetCents]
+	if best == nil {
+		return nil, 0
+	}
+	return best.cuts, round(float64(best.relief)/100, 2)
+}
+
+func betterCutPackage(candidate, current *cutPackage, targetCents int) bool {
+	if current == nil {
+		return true
+	}
+	if candidate.retention != current.retention {
+		return candidate.retention < current.retention
+	}
+	candidateExcess, currentExcess := candidate.relief-targetCents, current.relief-targetCents
+	if candidateExcess != currentExcess {
+		return candidateExcess < currentExcess
+	}
+	return len(candidate.cuts) < len(current.cuts)
 }
 
 func dispositionPriority(value string) int {

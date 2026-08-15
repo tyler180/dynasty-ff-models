@@ -45,6 +45,42 @@ func TestDropEvaluationUsesSalaryProjectionAndAge(t *testing.T) {
 	}
 }
 
+func TestDropEvaluationProtectsMarketAssetsAndRecommendsCutPackage(t *testing.T) {
+	birthDate := time.Date(1998, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+	snapshot := Snapshot{
+		SnapshotDate: "2026-08-15",
+		League:       League{Name: "League"},
+		Franchise:    Franchise{Name: "Team"},
+		Roster: []Player{
+			{ID: "star", Name: "Dynasty Star", Position: "WR", Salary: 25, Status: "ROSTER", DynastyRank: 12, MarketValue: 8000, MarketSource: "FantasyPros"},
+			{ID: "replaceable-a", Name: "Replaceable A", Position: "WR", Salary: 5, Status: "ROSTER"},
+			{ID: "replaceable-b", Name: "Replaceable B", Position: "WR", Salary: 5, Status: "ROSTER"},
+		},
+		BirthdatesUnix: map[string]int64{"star": birthDate, "replaceable-a": birthDate, "replaceable-b": birthDate},
+		HistoricalPoints: HistoricalPoints{Seasons: []HistoricalSeason{{
+			Season:                2025,
+			ByPlayerID:            map[string]float64{"star": 190, "replaceable-a": 80, "replaceable-b": 70},
+			GamesPlayedByPlayerID: map[string]int{"star": 16, "replaceable-a": 16, "replaceable-b": 16},
+		}}},
+		ReplacementLevels: ReplacementLevels{PointsPerGameByPosition: map[string]float64{"WR": 11.25}},
+	}
+
+	result := AnalyzeWithOptions(snapshot, AnalysisOptions{CapReliefTarget: 10, ProjectionFallback: "historical"})
+	drops := result.DropEvaluation
+	if drops.Candidates[2].PlayerID != "star" || drops.Candidates[2].Disposition != "trade_first" {
+		t.Fatalf("market asset was not protected: %+v", drops.Candidates)
+	}
+	if !drops.TargetMet || drops.RecommendedRelief != 10 || len(drops.RecommendedCuts) != 2 {
+		t.Fatalf("recommended package = %+v", drops)
+	}
+	if drops.RecommendedCuts[0].PlayerID != "replaceable-b" || drops.RecommendedCuts[1].PlayerID != "replaceable-a" {
+		t.Fatalf("recommended cuts = %+v", drops.RecommendedCuts)
+	}
+	if drops.BestForTarget == nil || drops.BestForTarget.PlayerID != "replaceable-b" {
+		t.Fatalf("backward-compatible best cut = %+v", drops.BestForTarget)
+	}
+}
+
 func TestWeightedHistoricalUsesFourSeasonsAndIgnoresMissing(t *testing.T) {
 	history := HistoricalPoints{Seasons: []HistoricalSeason{
 		{Season: 2021, ByPlayerID: map[string]float64{"veteran": 1000}, GamesPlayedByPlayerID: map[string]int{"veteran": 1}},
