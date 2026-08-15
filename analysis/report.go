@@ -149,20 +149,26 @@ func writeCandidateSection(out *strings.Builder, label string, candidates []Drop
 		if candidate.Disposition == "cap_efficiency_only" {
 			fmt.Fprintf(out, "    - %s (%s, age %d): $%.2f relief / %.2f %s / %.3f score\n",
 				candidate.Name, candidate.Position, candidate.Age, candidate.SalaryCapRelief, candidate.ProductionValue, metric, candidate.DropScore)
-			continue
+		} else {
+			switch candidate.Disposition {
+			case "drop_candidate":
+				fmt.Fprintf(out, "    - %s (%s, age %d): $%.2f relief; %.2f PPG vs %.2f replacement (VORP %+.2f); %.3f drop score\n",
+					candidate.Name, candidate.Position, candidate.Age, candidate.SalaryCapRelief, candidate.ProductionValue,
+					candidate.ReplacementPointsPerGame, candidate.ValueOverReplacement, candidate.DropScore)
+			case "trade_first":
+				fmt.Fprintf(out, "    - %s (%s, age %d): $%.2f relief; %.2f PPG vs %.2f replacement (VORP %+.2f); trade before cutting\n",
+					candidate.Name, candidate.Position, candidate.Age, candidate.SalaryCapRelief, candidate.ProductionValue,
+					candidate.ReplacementPointsPerGame, candidate.ValueOverReplacement)
+			case "hold_develop":
+				fmt.Fprintf(out, "    - %s (%s, age %d): %d season(s), %.2f development factor; hold unless an explicit dynasty valuation says otherwise\n",
+					candidate.Name, candidate.Position, candidate.Age, candidate.CareerSeasons, candidate.DevelopmentFactor)
+			}
 		}
-		switch candidate.Disposition {
-		case "drop_candidate":
-			fmt.Fprintf(out, "    - %s (%s, age %d): $%.2f relief; %.2f PPG vs %.2f replacement (VORP %+.2f); %.3f drop score\n",
-				candidate.Name, candidate.Position, candidate.Age, candidate.SalaryCapRelief, candidate.ProductionValue,
-				candidate.ReplacementPointsPerGame, candidate.ValueOverReplacement, candidate.DropScore)
-		case "trade_first":
-			fmt.Fprintf(out, "    - %s (%s, age %d): $%.2f relief; %.2f PPG vs %.2f replacement (VORP %+.2f); trade before cutting\n",
-				candidate.Name, candidate.Position, candidate.Age, candidate.SalaryCapRelief, candidate.ProductionValue,
-				candidate.ReplacementPointsPerGame, candidate.ValueOverReplacement)
-		case "hold_develop":
-			fmt.Fprintf(out, "    - %s (%s, age %d): %d season(s), %.2f development factor; hold unless an explicit dynasty valuation says otherwise\n",
-				candidate.Name, candidate.Position, candidate.Age, candidate.CareerSeasons, candidate.DevelopmentFactor)
+		if len(candidate.ReplacementOptions) > 0 {
+			replacement := candidate.ReplacementOptions[0]
+			fmt.Fprintf(out, "      Replacement: %s — %.2f historical PPG, estimated $%.2f salary (%s confidence), net relief $%.2f, MFL status %s\n",
+				replacement.Name, replacement.HistoricalPointsPerGame, replacement.EstimatedAcquisitionSalary,
+				replacement.BidConfidence, replacement.NetCapRelief, replacement.AvailabilityStatus)
 		}
 	}
 }

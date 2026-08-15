@@ -49,8 +49,11 @@ func TestDropEvaluationProtectsMarketAssetsAndRecommendsCutPackage(t *testing.T)
 	birthDate := time.Date(1998, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
 	snapshot := Snapshot{
 		SnapshotDate: "2026-08-15",
-		League:       League{Name: "League"},
-		Franchise:    Franchise{Name: "Team"},
+		League: League{
+			Name: "League", SalaryCap: 100, ActiveRosterLimit: 3,
+			WaiverType: "BBID", BlindBidBudget: 100, BlindBidBalance: 20, MinimumBid: 1,
+		},
+		Franchise: Franchise{Name: "Team", TotalCapHit: 35},
 		Roster: []Player{
 			{ID: "star", Name: "Dynasty Star", Position: "WR", Salary: 25, Status: "ROSTER", DynastyRank: 12, MarketValue: 8000, MarketSource: "FantasyPros"},
 			{ID: "replaceable-a", Name: "Replaceable A", Position: "WR", Salary: 5, Status: "ROSTER"},
@@ -62,7 +65,14 @@ func TestDropEvaluationProtectsMarketAssetsAndRecommendsCutPackage(t *testing.T)
 			ByPlayerID:            map[string]float64{"star": 190, "replaceable-a": 80, "replaceable-b": 70},
 			GamesPlayedByPlayerID: map[string]int{"star": 16, "replaceable-a": 16, "replaceable-b": 16},
 		}}},
-		ReplacementLevels: ReplacementLevels{PointsPerGameByPosition: map[string]float64{"WR": 11.25}},
+		ReplacementLevels: ReplacementLevels{
+			MinimumHistoricalGames: 8, PointsPerGameByPosition: map[string]float64{"WR": 11.25},
+			CandidatesByPosition: map[string][]ReplacementCandidate{"WR": {{
+				PlayerID: "free-agent", Name: "Actual Free Agent", Position: "WR", NFLTeam: "ATL",
+				AvailabilityStatus: "free_agent", HistoricalPointsPerGame: 9, HistoricalGames: 32,
+				EstimatedWinningBid: 3, BidLow: 1, BidHigh: 6, BidObservations: 40, BidConfidence: "high",
+			}}},
+		},
 	}
 
 	result := AnalyzeWithOptions(snapshot, AnalysisOptions{CapReliefTarget: 10, ProjectionFallback: "historical"})
@@ -78,6 +88,10 @@ func TestDropEvaluationProtectsMarketAssetsAndRecommendsCutPackage(t *testing.T)
 	}
 	if drops.BestForTarget == nil || drops.BestForTarget.PlayerID != "replaceable-b" {
 		t.Fatalf("backward-compatible best cut = %+v", drops.BestForTarget)
+	}
+	option := drops.RecommendedCuts[0].ReplacementOptions[0]
+	if option.PlayerID != "free-agent" || option.EstimatedAcquisitionSalary != 3 || option.NetCapRelief != 2 || !option.FitsSalaryCap || !option.FitsActiveRoster || !option.FitsBlindBidBudget || !option.BidEligibleNow {
+		t.Fatalf("replacement transaction = %+v", option)
 	}
 }
 
