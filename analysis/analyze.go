@@ -80,10 +80,23 @@ func AnalyzeWithOptions(snapshot Snapshot, options AnalysisOptions) Analysis {
 	analysis.DropEvaluation = evaluateDrops(snapshot, options)
 	analysis.RookieBoard = evaluateRookies(snapshot, year)
 	analysis.Warnings = []string{
-		"Historical fallback uses up to four prior seasons; replacement value and early-career protection improve cut analysis, but explicit dynasty market values are still absent.",
 		"The rookie draft is voluntary; total pick salary is an upper bound only if every pick is used on an active player.",
 		"Roster status and player eligibility must be refreshed again when the draft is scheduled.",
 	}
+	marketValued := 0
+	for _, player := range snapshot.Roster {
+		if player.DynastyRank > 0 || player.MarketValue > 0 {
+			marketValued++
+		}
+	}
+	marketWarning := "Historical fallback uses up to four prior seasons; replacement value and early-career protection improve cut analysis, but explicit dynasty market values are absent."
+	if marketValued > 0 {
+		marketWarning = fmt.Sprintf("Historical fallback uses up to four prior seasons; dynasty market coverage is partial at %d of %d rostered players.", marketValued, len(snapshot.Roster))
+	}
+	if marketValued == len(snapshot.Roster) && len(snapshot.Roster) > 0 {
+		marketWarning = "Historical fallback uses up to four prior seasons; dynasty market values cover every rostered player."
+	}
+	analysis.Warnings = append([]string{marketWarning}, analysis.Warnings...)
 	if !analysis.RookieBoard.Available {
 		analysis.Warnings = append([]string{"No valued rookie candidates are present, so this report cannot rank draft selections."}, analysis.Warnings...)
 	} else if analysis.RookieBoard.UnrankedCandidates > 0 {
