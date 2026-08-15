@@ -14,7 +14,8 @@ Public packages:
   `draft.Recommend`.
 - `analysis` provides roster, cap, taxi, historical-efficiency,
   replacement- and dynasty-market-aware drop analysis, including multi-player
-  cap-relief packages, and independently ranked offense and IDP rookie boards
+  cap-relief packages and transaction-level current-free-agent replacement
+  options, and independently ranked offense and IDP rookie boards
   through `analysis.AnalyzeWithOptions`. Each board uses a
   60/40 blend of rookie ECR and board-relative rookie-only ADP when both are
   available, and either signal can rank deeper candidates on its own.

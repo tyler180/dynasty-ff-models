@@ -274,7 +274,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		Candidates:       []DropCandidate{},
 		MissingPlayerIDs: []string{},
 		Method:           "Classify players before ranking: protect early-career and dynasty-ranked assets, then choose the lowest-retention-cost combination of actual drop candidates that meets the cap target.",
-		Caution:          "Replacement value, age, development, and available dynasty ECR are modeled. Market value is a rank-derived proxy, not a trade offer; future role, availability, and trade liquidity still require judgment.",
+		Caution:          "Replacement value, age, development, available dynasty ECR, and historical winning bids are modeled. Losing and pending bids are private, so acquisition salary and competition are estimates rather than guarantees.",
 	}
 	points := snapshot.Projections.ByPlayerID
 	historyByPlayer := map[string]historicalValue{}
@@ -292,7 +292,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		evaluation.ProjectionSource = fmt.Sprintf("%s recency-weighted historical points-per-game fallback", formatSeasons(allSeasons))
 		evaluation.ProductionMetric = "historical points per game"
 		evaluation.ReplacementSource = snapshot.ReplacementLevels.Source
-		evaluation.Caution = "Historical PPG fallback is enabled for exploratory use. Current free-agent replacement levels and available dynasty ECR improve the result, but future role, availability, and trade liquidity still require judgment."
+		evaluation.Caution = "Historical PPG fallback is enabled for exploratory use. Replacement options are current MFL free agents; estimated salaries use historical winning bids because losing and pending bids are not exposed."
 	}
 	if len(points) == 0 {
 		evaluation.ProjectionSource = "unavailable"
@@ -362,6 +362,7 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 				candidate.Disposition, candidate.DispositionReason = disposition(candidate, vorp)
 			}
 		}
+		candidate.ReplacementOptions = replacementOptions(snapshot, player, candidate)
 		evaluation.Candidates = append(evaluation.Candidates, candidate)
 	}
 	sort.Strings(evaluation.MissingPlayerIDs)
@@ -401,6 +402,107 @@ func evaluateDrops(snapshot Snapshot, options AnalysisOptions) DropEvaluation {
 		evaluation.BestForTarget = &best
 	}
 	return evaluation
+}
+
+func replacementOptions(snapshot Snapshot, dropped Player, candidate DropCandidate) []ReplacementOption {
+	pool := append([]ReplacementCandidate(nil), snapshot.ReplacementLevels.CandidatesByPosition[dropped.Position]...)
+	if len(pool) == 0 {
+		return nil
+	}
+	sort.SliceStable(pool, func(i, j int) bool {
+		leftEstablished := pool[i].HistoricalGames >= snapshot.ReplacementLevels.MinimumHistoricalGames
+		rightEstablished := pool[j].HistoricalGames >= snapshot.ReplacementLevels.MinimumHistoricalGames
+		if leftEstablished != rightEstablished {
+			return leftEstablished
+		}
+		if leftEstablished && pool[i].HistoricalPointsPerGame != pool[j].HistoricalPointsPerGame {
+			return pool[i].HistoricalPointsPerGame > pool[j].HistoricalPointsPerGame
+		}
+		if pool[i].MarketValue != pool[j].MarketValue {
+			return pool[i].MarketValue > pool[j].MarketValue
+		}
+		if pool[i].ProjectedPoints != pool[j].ProjectedPoints {
+			return pool[i].ProjectedPoints > pool[j].ProjectedPoints
+		}
+		return pool[i].Name < pool[j].Name
+	})
+
+	activeOpen := snapshot.League.ActiveRosterLimit - countStatus(snapshot.Roster, "ROSTER")
+	afterOpen := activeOpen - 1
+	if strings.EqualFold(dropped.Status, "ROSTER") {
+		afterOpen = activeOpen
+	}
+	capSpace := snapshot.League.SalaryCap - snapshot.Franchise.TotalCapHit
+	result := make([]ReplacementOption, 0, 5)
+	established, speculative := 0, 0
+	for _, replacement := range pool {
+		isEstablished := replacement.HistoricalGames >= snapshot.ReplacementLevels.MinimumHistoricalGames
+		if isEstablished {
+			if established >= 3 {
+				continue
+			}
+			established++
+		} else {
+			if speculative >= 2 || (replacement.MarketValue <= 0 && replacement.ProjectedPoints <= 0 && replacement.RookieYear == 0) {
+				continue
+			}
+			speculative++
+		}
+		salary := math.Max(snapshot.League.MinimumBid, replacement.EstimatedWinningBid)
+		netRelief := candidate.SalaryCapRelief - salary
+		evidence := "Established free agent with sufficient league-scored history."
+		if !isEstablished {
+			evidence = "Speculative option with limited history; dynasty rank or projection supplies the supporting signal."
+		}
+		if strings.EqualFold(replacement.AvailabilityStatus, "locked") {
+			evidence += " MFL currently marks the player locked."
+		}
+		projectedPPG := 0.0
+		projectedChange := 0.0
+		if replacement.ProjectedPoints > 0 {
+			projectedPPG = replacement.ProjectedPoints / 17
+			evidence += " A current FantasyPros projection supplies a forward-looking role signal."
+			if droppedProjection := snapshot.Projections.ByPlayerID[dropped.ID]; droppedProjection > 0 {
+				projectedChange = projectedPPG - droppedProjection/17
+			}
+		}
+		fitsBid := true
+		if strings.Contains(strings.ToUpper(snapshot.League.WaiverType), "BBID") {
+			fitsBid = salary <= snapshot.League.BlindBidBalance
+		}
+		option := ReplacementOption{
+			ReplacementCandidate:       replacement,
+			GrossCapRelief:             candidate.SalaryCapRelief,
+			EstimatedAcquisitionSalary: round(salary, 2),
+			NetCapRelief:               round(netRelief, 2),
+			CapSpaceAfterTransaction:   round(capSpace+netRelief, 2),
+			BlindBidBalanceAfter:       round(math.Max(0, snapshot.League.BlindBidBalance-salary), 2),
+			ActiveRosterOpenAfter:      afterOpen,
+			ProductionChange:           round(replacement.HistoricalPointsPerGame-candidate.ProductionValue, 2),
+			ProjectedPointsPerGame:     round(projectedPPG, 2),
+			ProjectedProductionChange:  round(projectedChange, 2),
+			FitsSalaryCap:              capSpace+netRelief >= 0,
+			FitsActiveRoster:           afterOpen >= 0,
+			FitsBlindBidBudget:         fitsBid,
+			BidEligibleNow:             !strings.EqualFold(replacement.AvailabilityStatus, "locked"),
+			Evidence:                   evidence,
+		}
+		result = append(result, option)
+		if established >= 3 && speculative >= 2 {
+			break
+		}
+	}
+	return result
+}
+
+func countStatus(players []Player, status string) int {
+	count := 0
+	for _, player := range players {
+		if strings.EqualFold(player.Status, status) {
+			count++
+		}
+	}
+	return count
 }
 
 func developmentFactor(age, careerSeasons int) float64 {

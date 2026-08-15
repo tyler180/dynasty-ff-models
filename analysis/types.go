@@ -22,6 +22,11 @@ type League struct {
 	ActiveRosterLimit   int     `json:"active_roster_limit"`
 	InjuredReserveLimit int     `json:"injured_reserve_limit"`
 	TaxiSquadLimit      int     `json:"taxi_squad_limit"`
+	WaiverType          string  `json:"waiver_type,omitempty"`
+	BlindBidBudget      float64 `json:"blind_bid_budget,omitempty"`
+	BlindBidBalance     float64 `json:"blind_bid_balance,omitempty"`
+	MinimumBid          float64 `json:"minimum_bid,omitempty"`
+	BidIncrement        float64 `json:"bid_increment,omitempty"`
 }
 
 type Franchise struct {
@@ -65,10 +70,36 @@ type HistoricalSeason struct {
 }
 
 type ReplacementLevels struct {
-	Source                  string             `json:"source,omitempty"`
-	Method                  string             `json:"method,omitempty"`
-	MinimumHistoricalGames  int                `json:"minimum_historical_games,omitempty"`
-	PointsPerGameByPosition map[string]float64 `json:"points_per_game_by_position,omitempty"`
+	Source                  string                            `json:"source,omitempty"`
+	Method                  string                            `json:"method,omitempty"`
+	MinimumHistoricalGames  int                               `json:"minimum_historical_games,omitempty"`
+	PointsPerGameByPosition map[string]float64                `json:"points_per_game_by_position,omitempty"`
+	CandidatesByPosition    map[string][]ReplacementCandidate `json:"candidates_by_position,omitempty"`
+	BidSource               string                            `json:"bid_source,omitempty"`
+	BidMethod               string                            `json:"bid_method,omitempty"`
+}
+
+type ReplacementCandidate struct {
+	PlayerID                    string  `json:"player_id"`
+	Name                        string  `json:"name"`
+	Position                    string  `json:"position"`
+	NFLTeam                     string  `json:"nfl_team,omitempty"`
+	RookieYear                  int     `json:"rookie_year,omitempty"`
+	AvailabilityStatus          string  `json:"availability_status,omitempty"`
+	ListedSalary                float64 `json:"listed_salary,omitempty"`
+	HistoricalPointsPerGame     float64 `json:"historical_points_per_game,omitempty"`
+	HistoricalGames             int     `json:"historical_games,omitempty"`
+	EstimatedWinningBid         float64 `json:"estimated_winning_bid,omitempty"`
+	BidLow                      float64 `json:"bid_low,omitempty"`
+	BidHigh                     float64 `json:"bid_high,omitempty"`
+	BidObservations             int     `json:"bid_observations,omitempty"`
+	HistoricalWinningFranchises int     `json:"historical_winning_franchises,omitempty"`
+	BidConfidence               string  `json:"bid_confidence,omitempty"`
+	Competition                 string  `json:"competition,omitempty"`
+	DynastyRank                 float64 `json:"dynasty_rank,omitempty"`
+	MarketValue                 float64 `json:"market_value,omitempty"`
+	ProjectedPoints             float64 `json:"projected_points,omitempty"`
+	Source                      string  `json:"source,omitempty"`
 }
 
 type Projections struct {
@@ -269,27 +300,46 @@ type DropEvaluation struct {
 }
 
 type DropCandidate struct {
-	Rank                     int     `json:"rank"`
-	PlayerID                 string  `json:"player_id"`
-	Name                     string  `json:"name"`
-	Position                 string  `json:"position"`
-	Age                      int     `json:"age"`
-	SalaryCapRelief          float64 `json:"salary_cap_relief"`
-	ProductionValue          float64 `json:"production_value"`
-	ProductionSeasons        []int   `json:"production_seasons,omitempty"`
-	HistoricalGames          int     `json:"historical_games,omitempty"`
-	CareerSeasons            int     `json:"career_seasons,omitempty"`
-	AgeFactor                float64 `json:"age_factor"`
-	DevelopmentFactor        float64 `json:"development_factor"`
-	ReplacementPointsPerGame float64 `json:"replacement_points_per_game,omitempty"`
-	ValueOverReplacement     float64 `json:"value_over_replacement,omitempty"`
-	DynastyAdjustedVORP      float64 `json:"dynasty_adjusted_vorp,omitempty"`
-	DynastyRank              float64 `json:"dynasty_rank,omitempty"`
-	MarketValue              float64 `json:"market_value,omitempty"`
-	MarketSource             string  `json:"market_source,omitempty"`
-	RetentionValue           float64 `json:"retention_value,omitempty"`
-	AgeAdjustedProduction    float64 `json:"age_adjusted_production"`
-	DropScore                float64 `json:"drop_score"`
-	Disposition              string  `json:"disposition"`
-	DispositionReason        string  `json:"disposition_reason"`
+	Rank                     int                 `json:"rank"`
+	PlayerID                 string              `json:"player_id"`
+	Name                     string              `json:"name"`
+	Position                 string              `json:"position"`
+	Age                      int                 `json:"age"`
+	SalaryCapRelief          float64             `json:"salary_cap_relief"`
+	ProductionValue          float64             `json:"production_value"`
+	ProductionSeasons        []int               `json:"production_seasons,omitempty"`
+	HistoricalGames          int                 `json:"historical_games,omitempty"`
+	CareerSeasons            int                 `json:"career_seasons,omitempty"`
+	AgeFactor                float64             `json:"age_factor"`
+	DevelopmentFactor        float64             `json:"development_factor"`
+	ReplacementPointsPerGame float64             `json:"replacement_points_per_game,omitempty"`
+	ValueOverReplacement     float64             `json:"value_over_replacement,omitempty"`
+	DynastyAdjustedVORP      float64             `json:"dynasty_adjusted_vorp,omitempty"`
+	DynastyRank              float64             `json:"dynasty_rank,omitempty"`
+	MarketValue              float64             `json:"market_value,omitempty"`
+	MarketSource             string              `json:"market_source,omitempty"`
+	RetentionValue           float64             `json:"retention_value,omitempty"`
+	AgeAdjustedProduction    float64             `json:"age_adjusted_production"`
+	DropScore                float64             `json:"drop_score"`
+	Disposition              string              `json:"disposition"`
+	DispositionReason        string              `json:"disposition_reason"`
+	ReplacementOptions       []ReplacementOption `json:"replacement_options,omitempty"`
+}
+
+type ReplacementOption struct {
+	ReplacementCandidate
+	GrossCapRelief             float64 `json:"gross_cap_relief"`
+	EstimatedAcquisitionSalary float64 `json:"estimated_acquisition_salary"`
+	NetCapRelief               float64 `json:"net_cap_relief"`
+	CapSpaceAfterTransaction   float64 `json:"cap_space_after_transaction"`
+	BlindBidBalanceAfter       float64 `json:"blind_bid_balance_after,omitempty"`
+	ActiveRosterOpenAfter      int     `json:"active_roster_open_after_transaction"`
+	ProductionChange           float64 `json:"production_change,omitempty"`
+	ProjectedPointsPerGame     float64 `json:"projected_points_per_game,omitempty"`
+	ProjectedProductionChange  float64 `json:"projected_production_change,omitempty"`
+	FitsSalaryCap              bool    `json:"fits_salary_cap"`
+	FitsActiveRoster           bool    `json:"fits_active_roster"`
+	FitsBlindBidBudget         bool    `json:"fits_blind_bid_budget"`
+	BidEligibleNow             bool    `json:"bid_eligible_now"`
+	Evidence                   string  `json:"evidence"`
 }
