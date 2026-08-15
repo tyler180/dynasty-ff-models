@@ -54,7 +54,7 @@ jobs:
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
 
-      - name: Trigger backend repo dependency update
+      - name: Trigger backends repo dependency update
         env:
             GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
             NEW_TAG: ${{ steps.version.outputs.tag }}
