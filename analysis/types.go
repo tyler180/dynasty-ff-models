@@ -46,6 +46,9 @@ type Player struct {
 	Status        string  `json:"status"`
 	CurrentCapHit float64 `json:"current_cap_hit,omitempty"`
 	RookieYear    int     `json:"rookie_year,omitempty"`
+	DynastyRank   float64 `json:"dynasty_rank,omitempty"`
+	MarketValue   float64 `json:"market_value,omitempty"`
+	MarketSource  string  `json:"market_source,omitempty"`
 }
 
 type HistoricalPoints struct {
@@ -253,6 +256,9 @@ type DropEvaluation struct {
 	ReplacementSource string          `json:"replacement_source,omitempty"`
 	CapReliefTarget   float64         `json:"cap_relief_target"`
 	BestForTarget     *DropCandidate  `json:"best_for_target,omitempty"`
+	RecommendedCuts   []DropCandidate `json:"recommended_cuts,omitempty"`
+	RecommendedRelief float64         `json:"recommended_cap_relief,omitempty"`
+	TargetMet         bool            `json:"target_met"`
 	Candidates        []DropCandidate `json:"candidates"`
 	DropCandidates    []DropCandidate `json:"drop_candidates,omitempty"`
 	TradeFirst        []DropCandidate `json:"trade_first,omitempty"`
@@ -278,6 +284,10 @@ type DropCandidate struct {
 	ReplacementPointsPerGame float64 `json:"replacement_points_per_game,omitempty"`
 	ValueOverReplacement     float64 `json:"value_over_replacement,omitempty"`
 	DynastyAdjustedVORP      float64 `json:"dynasty_adjusted_vorp,omitempty"`
+	DynastyRank              float64 `json:"dynasty_rank,omitempty"`
+	MarketValue              float64 `json:"market_value,omitempty"`
+	MarketSource             string  `json:"market_source,omitempty"`
+	RetentionValue           float64 `json:"retention_value,omitempty"`
 	AgeAdjustedProduction    float64 `json:"age_adjusted_production"`
 	DropScore                float64 `json:"drop_score"`
 	Disposition              string  `json:"disposition"`
