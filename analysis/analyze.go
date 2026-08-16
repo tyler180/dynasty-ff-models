@@ -540,8 +540,8 @@ func disposition(candidate DropCandidate, vorp float64) (string, string) {
 	if marketProtected(candidate) {
 		return "trade_first", "Protected from an outright drop by current dynasty market ranking; trade before considering release."
 	}
-	if vorp >= 1 {
-		return "trade_first", "Produces at least 1.0 PPG above the current positional replacement level."
+	if vorp >= 0 {
+		return "trade_first", "Produces at or above the current positional replacement level."
 	}
 	return "drop_candidate", "At or near the current positional replacement level and not covered by the early-career protection rule."
 }
