@@ -95,6 +95,13 @@ func TestDropEvaluationProtectsMarketAssetsAndRecommendsCutPackage(t *testing.T)
 	}
 }
 
+func TestDispositionProtectsAboveReplacementVeteranWithoutMarketData(t *testing.T) {
+	disposition, reason := disposition(DropCandidate{Age: 25, CareerSeasons: 4}, 0.62)
+	if disposition != "trade_first" || !strings.Contains(reason, "at or above") {
+		t.Fatalf("disposition = %q (%s), want trade_first", disposition, reason)
+	}
+}
+
 func TestWeightedHistoricalUsesFourSeasonsAndIgnoresMissing(t *testing.T) {
 	history := HistoricalPoints{Seasons: []HistoricalSeason{
 		{Season: 2021, ByPlayerID: map[string]float64{"veteran": 1000}, GamesPlayedByPlayerID: map[string]int{"veteran": 1}},
