@@ -19,6 +19,8 @@ Public packages:
   through `analysis.AnalyzeWithOptions`. Each board uses a
   60/40 blend of rookie ECR and board-relative rookie-only ADP when both are
   available, and either signal can rank deeper candidates on its own.
+- `usage` detects sustained increases or decreases in defensive snap share from
+  canonical game-level facts through `usage.Analyze`.
 
 Callers build the public inputs from their own data stores and provider facts.
 
@@ -36,9 +38,36 @@ import analysismodel "github.com/tyler180/dynasty-ff-models/analysis"
 result := analysismodel.AnalyzeWithOptions(snapshot, options)
 ```
 
+```go
+import usagemodel "github.com/tyler180/dynasty-ff-models/usage"
+
+report, err := usagemodel.Analyze(input)
+```
+
 The backend resolves canonical player IDs, loads league state and historical
 features, and builds `draftmodel.Input`. The model validates and evaluates that
 input without knowing where it came from.
+
+## Defensive usage trends
+
+The usage model compares the three most recent games with the preceding three
+games by default. Each window is weighted from raw totals:
+
+```text
+defensive snap share = sum(player defensive snaps) / sum(team defensive snaps)
+```
+
+A change of at least 10 percentage points must appear in at least two recent
+games before the model emits `rising` or `falling`. A large window change caused
+by only one game is `volatile`; fewer than six valid regular-season games is
+`insufficient_data`. Strong changes of at least 20 points that appear in every
+recent game receive high confidence.
+
+The output retains weekly observations, baseline and recent window totals,
+percentage-point change, confirmation count, confidence, and a plain-language
+reason. Thresholds and window sizes are configurable. The model does not fetch
+PFR/nflverse data or resolve provider IDs; the backend supplies canonical facts.
+A complete JSON input is available at `data/usage-example.json`.
 
 ## How decisions are scored
 
