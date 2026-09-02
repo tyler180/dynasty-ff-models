@@ -20,7 +20,7 @@ func Analyze(input Input) (Report, error) {
 		byPlayer[observation.PlayerID] = append(byPlayer[observation.PlayerID], observation)
 	}
 	report := Report{
-		Method: "Compare raw-snap-weighted recent and baseline windows; require the change to appear in multiple recent games.",
+		Method: "Compare raw-snap-weighted recent and baseline windows; use source per-game snap percentages to require confirmation in multiple recent games.",
 		Config: input.Config,
 		Trends: make([]PlayerTrend, 0, len(input.Players)),
 	}
@@ -122,7 +122,7 @@ func weeklyUsage(observations []Observation) []WeeklyUsage {
 		result = append(result, WeeklyUsage{
 			GameID: observation.GameID, Season: observation.Season, Week: observation.Week,
 			DefenseSnaps: observation.DefenseSnaps, TeamDefenseSnaps: observation.TeamDefenseSnaps,
-			DefenseSnapShare: round(float64(observation.DefenseSnaps)/float64(observation.TeamDefenseSnaps), 4),
+			DefenseSnapShare: round(observation.DefenseSnapPct, 4),
 		})
 	}
 	return result
@@ -131,7 +131,7 @@ func weeklyUsage(observations []Observation) []WeeklyUsage {
 func confirmingGames(observations []Observation, baseline, threshold float64, direction int) int {
 	count := 0
 	for _, observation := range observations {
-		share := float64(observation.DefenseSnaps) / float64(observation.TeamDefenseSnaps)
+		share := observation.DefenseSnapPct
 		if direction > 0 && share >= baseline+threshold {
 			count++
 		}
@@ -244,6 +244,9 @@ func (input Input) validate() error {
 		}
 		if observation.TeamDefenseSnaps <= 0 || observation.DefenseSnaps < 0 || observation.DefenseSnaps > observation.TeamDefenseSnaps {
 			return fmt.Errorf("observations[%d] must have valid player and team defensive snap totals", index)
+		}
+		if observation.DefenseSnapPct < 0 || observation.DefenseSnapPct > 1 || (observation.DefenseSnaps > 0 && observation.DefenseSnapPct == 0) {
+			return fmt.Errorf("observations[%d] must have a source defensive snap percentage between 0 and 1", index)
 		}
 		key := observation.PlayerID + "\x00" + observation.GameID
 		if _, duplicate := seenGames[key]; duplicate {
