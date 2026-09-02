@@ -68,10 +68,10 @@ func TestAnalyzeWeightsWindowsByTeamDefensiveSnaps(t *testing.T) {
 	input := Input{
 		Players: []Player{{ID: "player-1", Name: "Defender", PositionGroup: "LB"}},
 		Observations: []Observation{
-			{PlayerID: "player-1", GameID: "game-1", Season: 2025, Week: 1, GameType: "REG", DefenseSnaps: 20, TeamDefenseSnaps: 40},
-			{PlayerID: "player-1", GameID: "game-2", Season: 2025, Week: 2, GameType: "REG", DefenseSnaps: 40, TeamDefenseSnaps: 80},
-			{PlayerID: "player-1", GameID: "game-3", Season: 2025, Week: 3, GameType: "REG", DefenseSnaps: 40, TeamDefenseSnaps: 40},
-			{PlayerID: "player-1", GameID: "game-4", Season: 2025, Week: 4, GameType: "REG", DefenseSnaps: 80, TeamDefenseSnaps: 160},
+			{PlayerID: "player-1", GameID: "game-1", Season: 2025, Week: 1, GameType: "REG", DefenseSnaps: 20, TeamDefenseSnaps: 40, DefenseSnapPct: 0.50},
+			{PlayerID: "player-1", GameID: "game-2", Season: 2025, Week: 2, GameType: "REG", DefenseSnaps: 40, TeamDefenseSnaps: 80, DefenseSnapPct: 0.50},
+			{PlayerID: "player-1", GameID: "game-3", Season: 2025, Week: 3, GameType: "REG", DefenseSnaps: 40, TeamDefenseSnaps: 40, DefenseSnapPct: 1.00},
+			{PlayerID: "player-1", GameID: "game-4", Season: 2025, Week: 4, GameType: "REG", DefenseSnaps: 80, TeamDefenseSnaps: 160, DefenseSnapPct: 0.50},
 		},
 		Config: Config{BaselineGames: 2, RecentGames: 2, MinimumConfirmingGames: 1},
 	}
@@ -89,7 +89,7 @@ func TestAnalyzeExcludesPostseasonByDefault(t *testing.T) {
 	input := testInput([]int{12, 12, 12, 36, 36, 36}, 60)
 	input.Observations = append(input.Observations, Observation{
 		PlayerID: "player-1", GameID: "postseason", Season: 2025, Week: 19, GameType: "POST",
-		DefenseSnaps: 0, TeamDefenseSnaps: 60,
+		DefenseSnaps: 0, TeamDefenseSnaps: 60, DefenseSnapPct: 0,
 	})
 	report, err := Analyze(input)
 	if err != nil {
@@ -97,6 +97,38 @@ func TestAnalyzeExcludesPostseasonByDefault(t *testing.T) {
 	}
 	if report.Trends[0].LatestWeek != 6 || len(report.Trends[0].Weekly) != 6 {
 		t.Fatalf("trend = %+v", report.Trends[0])
+	}
+}
+
+func TestAnalyzeUsesSourcePercentageForWeeklyUsageAndConfirmation(t *testing.T) {
+	input := testInput([]int{12, 12, 12, 18, 18, 18}, 60)
+	for index := 3; index < 6; index++ {
+		// Deliberately differs from 18/60 (30%) to prove that the source
+		// percentage, rather than a reconstructed value, drives confirmation.
+		input.Observations[index].DefenseSnapPct = 0.50
+	}
+	report, err := Analyze(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trend := report.Trends[0]
+	if trend.Signal != SignalRising || trend.ConfirmingGames != 3 {
+		t.Fatalf("trend = %+v", trend)
+	}
+	if got := trend.Weekly[3].DefenseSnapShare; got != 0.50 {
+		t.Fatalf("weekly source snap share = %v, want 0.50", got)
+	}
+	if trend.Recent.DefenseSnapShare != 0.30 {
+		t.Fatalf("weighted recent snap share = %v, want 0.30", trend.Recent.DefenseSnapShare)
+	}
+}
+
+func TestAnalyzeRequiresSourcePercentageWhenPlayerHasDefensiveSnaps(t *testing.T) {
+	input := testInput([]int{12, 12, 12, 36, 36, 36}, 60)
+	input.Observations[0].DefenseSnapPct = 0
+	_, err := Analyze(input)
+	if err == nil || !strings.Contains(err.Error(), "source defensive snap percentage") {
+		t.Fatalf("error = %v", err)
 	}
 }
 
@@ -115,6 +147,7 @@ func testInput(playerSnaps []int, teamSnaps int) Input {
 		input.Observations = append(input.Observations, Observation{
 			PlayerID: "player-1", GameID: "game-" + string(rune('a'+index)), Season: 2025, Week: index + 1,
 			GameType: "REG", PositionGroup: "LB", DefenseSnaps: snaps, TeamDefenseSnaps: teamSnaps,
+			DefenseSnapPct: float64(snaps) / float64(teamSnaps),
 		})
 	}
 	return input

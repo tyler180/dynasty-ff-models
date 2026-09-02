@@ -14,6 +14,7 @@ func TestPublicUsageTrendAPI(t *testing.T) {
 		input.Observations = append(input.Observations, usage.Observation{
 			PlayerID: "player-1", GameID: string(rune('a' + week)), Season: 2025, Week: week + 1,
 			GameType: "REG", DefenseSnaps: snaps, TeamDefenseSnaps: 60,
+			DefenseSnapPct: float64(snaps) / 60,
 		})
 	}
 	report, err := usage.Analyze(input)

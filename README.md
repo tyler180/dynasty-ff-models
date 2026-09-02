@@ -58,10 +58,12 @@ defensive snap share = sum(player defensive snaps) / sum(team defensive snaps)
 ```
 
 A change of at least 10 percentage points must appear in at least two recent
-games before the model emits `rising` or `falling`. A large window change caused
-by only one game is `volatile`; fewer than six valid regular-season games is
-`insufficient_data`. Strong changes of at least 20 points that appear in every
-recent game receive high confidence.
+games before the model emits `rising` or `falling`. The confirming-game checks
+and weekly output use the source's direct per-game `defense_snap_pct`; the raw
+totals above remain the basis for weighted multi-game windows. A large window
+change caused by only one game is `volatile`; fewer than six valid regular-season
+games is `insufficient_data`. Strong changes of at least 20 points that appear
+in every recent game receive high confidence.
 
 The output retains weekly observations, baseline and recent window totals,
 percentage-point change, confirmation count, confidence, and a plain-language

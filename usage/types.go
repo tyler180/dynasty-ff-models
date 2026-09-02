@@ -23,16 +23,18 @@ type Player struct {
 }
 
 // Observation is one player's defensive participation in one game. The model
-// intentionally consumes canonical IDs and raw totals, not provider IDs.
+// consumes the source's per-game percentage for display and confirmation while
+// retaining raw totals for correctly weighted multi-game windows.
 type Observation struct {
-	PlayerID         string `json:"player_id"`
-	GameID           string `json:"game_id"`
-	Season           int    `json:"season"`
-	Week             int    `json:"week"`
-	GameType         string `json:"game_type,omitempty"`
-	PositionGroup    string `json:"position_group,omitempty"`
-	DefenseSnaps     int    `json:"defense_snaps"`
-	TeamDefenseSnaps int    `json:"team_defense_snaps"`
+	PlayerID         string  `json:"player_id"`
+	GameID           string  `json:"game_id"`
+	Season           int     `json:"season"`
+	Week             int     `json:"week"`
+	GameType         string  `json:"game_type,omitempty"`
+	PositionGroup    string  `json:"position_group,omitempty"`
+	DefenseSnaps     int     `json:"defense_snaps"`
+	TeamDefenseSnaps int     `json:"team_defense_snaps"`
+	DefenseSnapPct   float64 `json:"defense_snap_pct"`
 }
 
 type Config struct {

@@ -8,11 +8,11 @@
     }
   ],
   "observations": [
-    {"player_id":"player-example-linebacker","game_id":"2025_01_A_B","season":2025,"week":1,"game_type":"REG","defense_snaps":12,"team_defense_snaps":60},
-    {"player_id":"player-example-linebacker","game_id":"2025_02_A_C","season":2025,"week":2,"game_type":"REG","defense_snaps":15,"team_defense_snaps":62},
-    {"player_id":"player-example-linebacker","game_id":"2025_03_D_A","season":2025,"week":3,"game_type":"REG","defense_snaps":14,"team_defense_snaps":64},
-    {"player_id":"player-example-linebacker","game_id":"2025_04_A_E","season":2025,"week":4,"game_type":"REG","defense_snaps":38,"team_defense_snaps":61},
-    {"player_id":"player-example-linebacker","game_id":"2025_05_F_A","season":2025,"week":5,"game_type":"REG","defense_snaps":44,"team_defense_snaps":65},
-    {"player_id":"player-example-linebacker","game_id":"2025_06_A_G","season":2025,"week":6,"game_type":"REG","defense_snaps":49,"team_defense_snaps":63}
+    {"player_id":"player-example-linebacker","game_id":"2025_01_A_B","season":2025,"week":1,"game_type":"REG","defense_snaps":12,"team_defense_snaps":60,"defense_snap_pct":0.20},
+    {"player_id":"player-example-linebacker","game_id":"2025_02_A_C","season":2025,"week":2,"game_type":"REG","defense_snaps":15,"team_defense_snaps":62,"defense_snap_pct":0.24},
+    {"player_id":"player-example-linebacker","game_id":"2025_03_D_A","season":2025,"week":3,"game_type":"REG","defense_snaps":14,"team_defense_snaps":64,"defense_snap_pct":0.22},
+    {"player_id":"player-example-linebacker","game_id":"2025_04_A_E","season":2025,"week":4,"game_type":"REG","defense_snaps":38,"team_defense_snaps":61,"defense_snap_pct":0.62},
+    {"player_id":"player-example-linebacker","game_id":"2025_05_F_A","season":2025,"week":5,"game_type":"REG","defense_snaps":44,"team_defense_snaps":65,"defense_snap_pct":0.68},
+    {"player_id":"player-example-linebacker","game_id":"2025_06_A_G","season":2025,"week":6,"game_type":"REG","defense_snaps":49,"team_defense_snaps":63,"defense_snap_pct":0.78}
   ]
 }
