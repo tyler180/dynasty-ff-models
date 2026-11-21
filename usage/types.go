@@ -20,6 +20,8 @@ type Player struct {
 	Name          string `json:"name"`
 	Position      string `json:"position,omitempty"`
 	PositionGroup string `json:"position_group"`
+	// BirthdateUnix is the player's date of birth as Unix seconds; 0 means unknown.
+	BirthdateUnix int64 `json:"birthdate_unix,omitempty"`
 }
 
 // Observation is one player's defensive participation in one game. The model
@@ -45,6 +47,13 @@ type Config struct {
 	ChangeThreshold           float64 `json:"change_threshold,omitempty"`
 	StrongChangeThreshold     float64 `json:"strong_change_threshold,omitempty"`
 	IncludePostseason         bool    `json:"include_postseason,omitempty"`
+	// MaxAge, when positive, excludes players whose age on AgeAsOf is MaxAge or
+	// older, so 28 keeps players under 28. Players without a birthdate are kept
+	// with an unknown age. Zero disables the filter.
+	MaxAge int `json:"max_age,omitempty"`
+	// AgeAsOf is the YYYY-MM-DD date ages are computed on. It is required with
+	// MaxAge; without MaxAge it only adds ages to the report.
+	AgeAsOf string `json:"age_as_of,omitempty"`
 }
 
 type Report struct {
@@ -60,6 +69,7 @@ type Summary struct {
 	Stable           int `json:"stable"`
 	Volatile         int `json:"volatile"`
 	InsufficientData int `json:"insufficient_data"`
+	ExcludedByAge    int `json:"excluded_by_age"`
 }
 
 type PlayerTrend struct {
@@ -67,6 +77,7 @@ type PlayerTrend struct {
 	Name                   string        `json:"name"`
 	Position               string        `json:"position,omitempty"`
 	PositionGroup          string        `json:"position_group"`
+	Age                    *int          `json:"age"`
 	Signal                 string        `json:"signal"`
 	Confidence             string        `json:"confidence"`
 	UsageTier              string        `json:"usage_tier,omitempty"`

@@ -5,7 +5,10 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 )
+
+const ageDateLayout = "2006-01-02"
 
 func Analyze(input Input) (Report, error) {
 	input.Config.applyDefaults()
@@ -24,7 +27,17 @@ func Analyze(input Input) (Report, error) {
 		Config: input.Config,
 		Trends: make([]PlayerTrend, 0, len(input.Players)),
 	}
+	ageAsOf, hasAgeAsOf := parseAgeAsOf(input.Config.AgeAsOf)
 	for _, player := range input.Players {
+		var age *int
+		if hasAgeAsOf && player.BirthdateUnix != 0 {
+			value := ageOn(time.Unix(player.BirthdateUnix, 0).UTC(), ageAsOf)
+			age = &value
+		}
+		if input.Config.MaxAge > 0 && age != nil && *age >= input.Config.MaxAge {
+			report.Summary.ExcludedByAge++
+			continue
+		}
 		observations := byPlayer[player.ID]
 		sort.Slice(observations, func(i, j int) bool {
 			if observations[i].Season != observations[j].Season {
@@ -36,6 +49,7 @@ func Analyze(input Input) (Report, error) {
 			return observations[i].GameID < observations[j].GameID
 		})
 		trend := analyzePlayer(player, observations, input.Config)
+		trend.Age = age
 		report.Trends = append(report.Trends, trend)
 		incrementSummary(&report.Summary, trend.Signal)
 	}
@@ -216,6 +230,17 @@ func (input Input) validate() error {
 	if config.ChangeThreshold <= 0 || config.ChangeThreshold > 1 || config.StrongChangeThreshold < config.ChangeThreshold || config.StrongChangeThreshold > 1 {
 		return fmt.Errorf("change thresholds must satisfy 0 < change_threshold <= strong_change_threshold <= 1")
 	}
+	if config.MaxAge < 0 || config.MaxAge > 60 {
+		return fmt.Errorf("max_age must be between 0 and 60")
+	}
+	if config.MaxAge > 0 && strings.TrimSpace(config.AgeAsOf) == "" {
+		return fmt.Errorf("age_as_of is required when max_age is set")
+	}
+	if config.AgeAsOf != "" {
+		if _, err := time.Parse(ageDateLayout, config.AgeAsOf); err != nil {
+			return fmt.Errorf("age_as_of must be a YYYY-MM-DD date")
+		}
+	}
 	if len(input.Players) == 0 {
 		return fmt.Errorf("players cannot be empty")
 	}
@@ -255,6 +280,23 @@ func (input Input) validate() error {
 		seenGames[key] = struct{}{}
 	}
 	return nil
+}
+
+func parseAgeAsOf(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	date, err := time.Parse(ageDateLayout, value)
+	return date, err == nil
+}
+
+// ageOn returns completed years of age on date.
+func ageOn(birthdate, date time.Time) int {
+	age := date.Year() - birthdate.Year()
+	if date.Month() < birthdate.Month() || (date.Month() == birthdate.Month() && date.Day() < birthdate.Day()) {
+		age--
+	}
+	return age
 }
 
 func normalizeGroup(group string) string {

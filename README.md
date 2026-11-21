@@ -57,9 +57,10 @@ games by default. Each window is weighted from raw totals:
 defensive snap share = sum(player defensive snaps) / sum(team defensive snaps)
 ```
 
-A change of at least 10 percentage points must appear in at least two recent
-games before the model emits `rising` or `falling`. The confirming-game checks
-and weekly output use the source's direct per-game `defense_snap_pct`; the raw
+The recent window must differ from the baseline by at least 10 percentage
+points, and at least two recent games must each sit at least half that (5
+points) beyond the baseline, before the model emits `rising` or `falling`. The
+confirming-game checks and weekly output use the source's direct per-game `defense_snap_pct`; the raw
 totals above remain the basis for weighted multi-game windows. A large window
 change caused by only one game is `volatile`; fewer than six valid regular-season
 games is `insufficient_data`. Strong changes of at least 20 points that appear
@@ -70,6 +71,16 @@ percentage-point change, confirmation count, confidence, and a plain-language
 reason. Thresholds and window sizes are configurable. The model does not fetch
 PFR/nflverse data or resolve provider IDs; the backend supplies canonical facts.
 A complete JSON input is available at `data/usage-example.json`.
+
+### Age filter
+
+Give each player a `birthdate_unix` (0 or omitted means unknown) and set
+`age_as_of` (`YYYY-MM-DD`) to report each player's `age`. Ages use completed
+years on that date, so results do not depend on when the model runs. Set
+`max_age` as well to drop players whose age is `max_age` or older: `max_age: 28`
+keeps players under 28. Players without a birthdate are kept with `age: null`.
+`summary.excluded_by_age` counts the players removed. `max_age` requires
+`age_as_of`; zero disables the filter.
 
 ## How decisions are scored
 
